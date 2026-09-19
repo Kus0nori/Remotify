@@ -27,7 +27,7 @@ Remotify — приложение для удалённого управлени
 
 ## Структура проекта
 ```
-Remotify/
+Remotify_Desktop/
 ├── App.xaml / App.xaml.cs      — точка входа, tray icon, жизненный цикл
 ├── MainWindow.xaml/.cs         — окно настроек
 ├── Services/

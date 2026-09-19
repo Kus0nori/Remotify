@@ -1,5 +1,15 @@
+# Build results
+bin/
+obj/
+
 # IDE
 .idea/
+.vs/
+.vscode/
+
+# User-specific files
+*.user
+*.suo
 
 # Claude Code
 .claude/

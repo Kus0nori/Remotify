@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Remotify", "Remotify\Remotify.csproj", "{C4811872-65EE-4E2E-A527-A32B6B95C848}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Remotify", "Remotify_Desktop\Remotify.csproj", "{C4811872-65EE-4E2E-A527-A32B6B95C848}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
