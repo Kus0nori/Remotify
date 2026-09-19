@@ -8,7 +8,14 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <UseWinUI>true</UseWinUI>
         <WindowsPackageType>None</WindowsPackageType>
+        <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     </PropertyGroup>
+
+    <ItemGroup>
+        <Content Include="Assets\app.ico">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
 
     <ItemGroup>
         <FrameworkReference Include="Microsoft.AspNetCore.App" />

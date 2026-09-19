@@ -125,8 +125,15 @@ public class ApiServer : IDisposable
     public void Dispose()
     {
         _cts?.Cancel();
-        _app?.StopAsync().Wait();
-        _app?.DisposeAsync().AsTask().Wait();
+        try
+        {
+            _app?.StopAsync().Wait(TimeSpan.FromSeconds(2));
+            _app?.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(2));
+        }
+        catch
+        {
+            // Ignore timeout exceptions on shutdown
+        }
         _cts?.Dispose();
     }
 
