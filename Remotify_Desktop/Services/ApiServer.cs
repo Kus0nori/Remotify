@@ -22,7 +22,7 @@ public class ApiServer : IDisposable
         _powerService = powerService;
     }
 
-    public async Task StartAsync()
+    public void Start()
     {
         if (_app != null) return;
 
@@ -38,6 +38,12 @@ public class ApiServer : IDisposable
 
         _app.Use(async (context, next) =>
         {
+            if (context.Request.Path.StartsWithSegments("/api/ping"))
+            {
+                await next();
+                return;
+            }
+
             var authHeader = context.Request.Headers.Authorization.ToString();
             var expectedToken = $"Bearer {_settingsService.Settings.AuthToken}";
 
@@ -113,7 +119,7 @@ public class ApiServer : IDisposable
     public async Task RestartAsync()
     {
         await StopAsync();
-        await StartAsync();
+        Start();
     }
 
     public void Dispose()

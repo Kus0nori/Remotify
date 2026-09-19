@@ -17,7 +17,7 @@ public partial class App : Application
     public FirewallService FirewallService { get; } = new();
     public ApiServer ApiServer { get; private set; } = null!;
 
-    protected override async void OnStartup(StartupEventArgs e)
+    protected override void OnStartup(StartupEventArgs e)
     {
         const string mutexName = "Remotify_SingleInstance";
         _mutex = new Mutex(true, mutexName, out var isNewInstance);
@@ -37,7 +37,7 @@ public partial class App : Application
         _trayIcon = (TaskbarIcon)FindResource("TrayIcon");
         _trayIcon.ForceCreate();
 
-        await ApiServer.StartAsync();
+        ApiServer.Start();
     }
 
     protected override void OnExit(ExitEventArgs e)
