@@ -5,8 +5,90 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Remotify"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="Remotify - Настройки" Height="400" Width="450"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Closing="Window_Closing">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
 
+        <!-- Статус -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,15">
+            <TextBlock Text="Статус" FontWeight="Bold" FontSize="14" />
+            <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                <Ellipse x:Name="StatusIndicator" Width="12" Height="12" Fill="Green" VerticalAlignment="Center" />
+                <TextBlock x:Name="StatusText" Text="Сервер запущен" Margin="8,0,0,0" VerticalAlignment="Center" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Подключение -->
+        <StackPanel Grid.Row="1" Margin="0,0,0,15">
+            <TextBlock Text="Подключение" FontWeight="Bold" FontSize="14" />
+            <Grid Margin="0,5,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="IP-адрес:" VerticalAlignment="Center" />
+                <TextBox x:Name="IpAddressText" Grid.Row="0" Grid.Column="1" IsReadOnly="True" Margin="10,0,10,0" />
+                <Button Grid.Row="0" Grid.Column="2" Content="Копировать" Width="80" Click="CopyIp_Click" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Порт:" VerticalAlignment="Center" Margin="0,8,0,0" />
+                <TextBox x:Name="PortText" Grid.Row="1" Grid.Column="1" Margin="10,8,10,0" />
+            </Grid>
+        </StackPanel>
+
+        <!-- Токен -->
+        <StackPanel Grid.Row="2" Margin="0,0,0,15">
+            <TextBlock Text="Токен авторизации" FontWeight="Bold" FontSize="14" />
+            <Grid Margin="0,5,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="TokenText" Grid.Column="0" IsReadOnly="True" />
+                <Button Grid.Column="1" Content="Копировать" Width="80" Margin="10,0,0,0" Click="CopyToken_Click" />
+                <Button Grid.Column="2" Content="Новый" Width="60" Margin="10,0,0,0" Click="RegenerateToken_Click" />
+            </Grid>
+        </StackPanel>
+
+        <!-- Настройки -->
+        <StackPanel Grid.Row="3" Margin="0,0,0,15">
+            <TextBlock Text="Настройки" FontWeight="Bold" FontSize="14" />
+            <CheckBox x:Name="AutoStartCheckBox" Content="Запускать при старте Windows" Margin="0,8,0,0"
+                      Checked="AutoStartCheckBox_Changed" Unchecked="AutoStartCheckBox_Changed" />
+            <CheckBox x:Name="FirewallCheckBox" Content="Открыть порт в брандмауэре (требует прав администратора)" Margin="0,8,0,0"
+                      Checked="FirewallCheckBox_Changed" Unchecked="FirewallCheckBox_Changed" />
+        </StackPanel>
+
+        <!-- Инструкция -->
+        <StackPanel Grid.Row="4" Margin="0,0,0,15">
+            <TextBlock Text="Для мобильного приложения" FontWeight="Bold" FontSize="14" />
+            <TextBlock TextWrapping="Wrap" Margin="0,5,0,0" Foreground="Gray">
+                Укажите в мобильном приложении IP-адрес, порт и токен авторизации.
+                Убедитесь, что телефон подключён к той же сети Wi-Fi.
+            </TextBlock>
+        </StackPanel>
+
+        <!-- Кнопки -->
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Сохранить" Width="100" Click="Save_Click" />
+            <Button Content="Закрыть" Width="100" Margin="10,0,0,0" Click="Close_Click" />
+        </StackPanel>
     </Grid>
 </Window>
