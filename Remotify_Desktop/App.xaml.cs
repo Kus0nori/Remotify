@@ -1,5 +1,6 @@
-﻿using System.Threading;
-using System.Windows;
+using System.Threading;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using H.NotifyIcon;
 using Remotify.Services;
 
@@ -11,72 +12,101 @@ public partial class App : Application
     private TaskbarIcon? _trayIcon;
     private MainWindow? _mainWindow;
 
+    public static new App Current => (App)Application.Current;
+
     public SettingsService SettingsService { get; } = new();
     public PowerService PowerService { get; } = new();
     public StartupService StartupService { get; } = new();
     public FirewallService FirewallService { get; } = new();
     public ApiServer ApiServer { get; private set; } = null!;
 
-    protected override void OnStartup(StartupEventArgs e)
+    public App()
+    {
+        InitializeComponent();
+    }
+
+    protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         const string mutexName = "Remotify_SingleInstance";
         _mutex = new Mutex(true, mutexName, out var isNewInstance);
 
         if (!isNewInstance)
         {
-            MessageBox.Show("Remotify уже запущен.", "Remotify", MessageBoxButton.OK, MessageBoxImage.Information);
-            Shutdown();
+            // Can't show dialog without a window, just exit
+            _mutex?.Dispose();
+            Exit();
             return;
         }
-
-        base.OnStartup(e);
 
         SettingsService.Load();
         ApiServer = new ApiServer(SettingsService, PowerService);
 
-        _trayIcon = (TaskbarIcon)FindResource("TrayIcon");
-        _trayIcon.ForceCreate();
+        CreateTrayIcon();
 
         ApiServer.Start();
     }
 
-    protected override void OnExit(ExitEventArgs e)
+    private void CreateTrayIcon()
+    {
+        _trayIcon = new TaskbarIcon
+        {
+            ToolTipText = "Remotify"
+        };
+
+        var contextMenu = new MenuFlyout();
+
+        var openItem = new MenuFlyoutItem
+        {
+            Text = "Открыть",
+            FontWeight = Microsoft.UI.Text.FontWeights.Bold
+        };
+        openItem.Click += (_, _) => ShowMainWindow();
+        contextMenu.Items.Add(openItem);
+
+        contextMenu.Items.Add(new MenuFlyoutSeparator());
+
+        var exitItem = new MenuFlyoutItem { Text = "Выход" };
+        exitItem.Click += (_, _) => Shutdown();
+        contextMenu.Items.Add(exitItem);
+
+        _trayIcon.ContextFlyout = contextMenu;
+        _trayIcon.LeftClickCommand = new RelayCommand(ShowMainWindow);
+        _trayIcon.DoubleClickCommand = new RelayCommand(ShowMainWindow);
+        _trayIcon.ForceCreate();
+    }
+
+    public void Shutdown()
     {
         _trayIcon?.Dispose();
         ApiServer?.Dispose();
         _mutex?.ReleaseMutex();
         _mutex?.Dispose();
-        base.OnExit(e);
+        Exit();
     }
 
     public void ShowMainWindow()
     {
-        if (_mainWindow == null || !_mainWindow.IsLoaded)
+        if (_mainWindow == null)
         {
             _mainWindow = new MainWindow();
+            _mainWindow.Closed += (_, _) => _mainWindow = null;
         }
 
-        _mainWindow.Show();
         _mainWindow.Activate();
-
-        if (_mainWindow.WindowState == WindowState.Minimized)
-        {
-            _mainWindow.WindowState = WindowState.Normal;
-        }
     }
 
-    private void OpenMenuItem_Click(object sender, RoutedEventArgs e)
+    private class RelayCommand : System.Windows.Input.ICommand
     {
-        ShowMainWindow();
-    }
+        private readonly Action _execute;
 
-    private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
-    {
-        Shutdown();
-    }
+        public RelayCommand(Action execute) => _execute = execute;
 
-    private void TrayIcon_TrayLeftMouseDoubleClick(object sender, RoutedEventArgs e)
-    {
-        ShowMainWindow();
+#pragma warning disable CS0067
+        public event EventHandler? CanExecuteChanged;
+#pragma warning restore CS0067
+
+        public bool CanExecute(object? parameter) => true;
+
+        public void Execute(object? parameter) => _execute();
     }
 }
