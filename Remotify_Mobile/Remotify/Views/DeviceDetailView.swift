@@ -9,6 +9,7 @@ struct DeviceDetailView: View {
     @State private var pendingAction: PowerAction?
     @State private var runningAction: PowerAction?
     @State private var result: ActionResult?
+    @State private var copied: String?
 
     private enum Status {
         case unknown, checking, online, offline(String)
@@ -22,54 +23,10 @@ struct DeviceDetailView: View {
 
     var body: some View {
         List {
-            Section("Состояние") {
-                HStack {
-                    statusIcon
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(statusTitle)
-                        Text(device.displayAddress)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button("Обновить") { Task { await refreshStatus() } }
-                        .buttonStyle(.bordered)
-                        .disabled(isChecking)
-                }
-                .padding(.vertical, 4)
-
-                if case .offline(let message) = status {
-                    Text(message)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Section("Действия") {
-                ForEach(PowerAction.allCases) { action in
-                    Button {
-                        pendingAction = action
-                    } label: {
-                        HStack {
-                            Label(action.title, systemImage: action.systemImage)
-                            Spacer()
-                            if runningAction == action {
-                                ProgressView()
-                            }
-                        }
-                    }
-                    .disabled(runningAction != nil)
-                    .foregroundStyle(action.isDestructive ? Color.red : Color.accentColor)
-                }
-            }
-
-            if let result {
-                Section {
-                    Label(result.message, systemImage: result.isError ? "exclamationmark.triangle" : "checkmark.circle")
-                        .foregroundStyle(result.isError ? .red : .green)
-                        .font(.footnote)
-                }
-            }
+            statusSection
+            actionsSection
+            widgetSection
+            resultSection
         }
         .navigationTitle(device.name)
         .navigationBarTitleDisplayMode(.large)
@@ -85,6 +42,82 @@ struct DeviceDetailView: View {
                 }
             }
             Button("Отмена", role: .cancel) {}
+        }
+    }
+
+    private var statusSection: some View {
+        Section("Состояние") {
+            HStack {
+                statusIcon
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(statusTitle)
+                    Text(device.displayAddress)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Обновить") { Task { await refreshStatus() } }
+                    .buttonStyle(.bordered)
+                    .disabled(isChecking)
+            }
+            .padding(.vertical, 4)
+
+            if case .offline(let message) = status {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var actionsSection: some View {
+        Section("Действия") {
+            ForEach(PowerAction.allCases) { action in
+                Button {
+                    pendingAction = action
+                } label: {
+                    HStack {
+                        Label(action.title, systemImage: action.systemImage)
+                        Spacer()
+                        if runningAction == action {
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(runningAction != nil)
+                .foregroundStyle(action.isDestructive ? Color.red : Color.accentColor)
+            }
+        }
+    }
+
+    /// Виджет не делит хранилище с приложением, поэтому адрес и токен
+    /// приходится переносить в его настройки вручную.
+    private var widgetSection: some View {
+        Section {
+            Button("Скопировать адрес", systemImage: "doc.on.doc") {
+                UIPasteboard.general.string = device.displayAddress
+                copied = "Адрес скопирован"
+            }
+            Button("Скопировать токен", systemImage: "key") {
+                UIPasteboard.general.string = store.token(for: device) ?? ""
+                copied = "Токен скопирован"
+            }
+        } header: {
+            Text("Для виджета")
+        } footer: {
+            Text(copied ?? "Виджет настраивается отдельно: вставьте эти значения в его параметрах.")
+                .foregroundStyle(copied == nil ? Color.secondary : Color.green)
+        }
+    }
+
+    @ViewBuilder
+    private var resultSection: some View {
+        if let result {
+            Section {
+                Label(result.message, systemImage: result.isError ? "exclamationmark.triangle" : "checkmark.circle")
+                    .foregroundStyle(result.isError ? Color.red : Color.green)
+                    .font(.footnote)
+            }
         }
     }
 

@@ -1,3 +1,4 @@
+import AppIntents
 import Foundation
 
 /// Команды, которые понимает `POST /api/command` десктопной части.
@@ -41,5 +42,19 @@ enum PowerAction: String, CaseIterable, Identifiable, Sendable {
         case .sleep: "Перевести «\(deviceName)» в режим сна?"
         case .hibernate: "Перевести «\(deviceName)» в гибернацию?"
         }
+    }
+}
+
+/// Даёт выпадающий список действий в настройках виджета.
+extension PowerAction: AppEnum {
+    static var typeDisplayRepresentation: TypeDisplayRepresentation { "Действие" }
+
+    static var caseDisplayRepresentations: [PowerAction: DisplayRepresentation] {
+        [
+            .shutdown: DisplayRepresentation(title: "Выключить", image: .init(systemName: "power")),
+            .reboot: DisplayRepresentation(title: "Перезагрузить", image: .init(systemName: "arrow.clockwise")),
+            .sleep: DisplayRepresentation(title: "Сон", image: .init(systemName: "moon.zzz")),
+            .hibernate: DisplayRepresentation(title: "Гибернация", image: .init(systemName: "snowflake"))
+        ]
     }
 }
