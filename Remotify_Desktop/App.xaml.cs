@@ -28,6 +28,7 @@ public partial class App : Application
     public StartupService StartupService { get; } = new();
     public FirewallService FirewallService { get; } = new();
     public WindowService WindowService { get; } = new();
+    public MetricsService MetricsService { get; } = new();
     public ApiServer ApiServer { get; private set; } = null!;
 
     public App()
@@ -54,7 +55,7 @@ public partial class App : Application
         ShowWindow(hwnd, SW_HIDE);
 
         SettingsService.Load();
-        ApiServer = new ApiServer(SettingsService, PowerService, WindowService);
+        ApiServer = new ApiServer(SettingsService, PowerService, WindowService, MetricsService);
 
         CreateTrayIcon();
 
@@ -102,6 +103,7 @@ public partial class App : Application
         {
             _trayIcon?.Dispose();
             ApiServer?.Dispose();
+            MetricsService?.Dispose();
             _mutex?.ReleaseMutex();
             _mutex?.Dispose();
         }

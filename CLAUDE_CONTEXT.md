@@ -36,10 +36,12 @@ Remotify_Desktop/
 │   ├── SettingsService.cs      — загрузка/сохранение настроек
 │   ├── StartupService.cs       — автозапуск через реестр
 │   ├── FirewallService.cs      — управление правилами брандмауэра
-│   └── WindowService.cs        — список окон и иконки приложений
+│   ├── WindowService.cs        — список окон и иконки приложений
+│   └── MetricsService.cs       — системные метрики (CPU, RAM, Network, Uptime)
 └── Models/
     ├── AppSettings.cs          — модель настроек
-    └── AppInfo.cs              — модель информации о приложении
+    ├── AppInfo.cs              — модель информации о приложении
+    └── SystemMetrics.cs        — модель системных метрик
 ```
 
 ## API для мобильного приложения
@@ -92,6 +94,29 @@ Errors:
   404 Not Found — иконка не найдена
 ```
 - `id` — handle окна из списка `/api/apps`
+
+### Системные метрики
+```
+GET /api/metrics
+Headers:
+  Authorization: Bearer <token>
+Response: {
+  "cpuUsage": 45.2,
+  "ramUsage": 68.5,
+  "ramUsedGb": 10.8,
+  "ramTotalGb": 16.0,
+  "networkUploadBps": 125000,
+  "networkDownloadBps": 890000,
+  "uptimeSeconds": 345600
+}
+Errors:
+  401 Unauthorized — неверный токен
+```
+- `cpuUsage` — загрузка CPU в процентах
+- `ramUsage` — использование RAM в процентах
+- `ramUsedGb` / `ramTotalGb` — RAM в гигабайтах
+- `networkUploadBps` / `networkDownloadBps` — скорость сети в bytes/sec
+- `uptimeSeconds` — время работы системы в секундах
 
 ### Параметры подключения
 - **Порт по умолчанию**: 5123

@@ -12,16 +12,18 @@ public class ApiServer : IDisposable
     private readonly SettingsService _settingsService;
     private readonly PowerService _powerService;
     private readonly WindowService _windowService;
+    private readonly MetricsService _metricsService;
     private WebApplication? _app;
     private CancellationTokenSource? _cts;
 
     public bool IsRunning => _app != null;
 
-    public ApiServer(SettingsService settingsService, PowerService powerService, WindowService windowService)
+    public ApiServer(SettingsService settingsService, PowerService powerService, WindowService windowService, MetricsService metricsService)
     {
         _settingsService = settingsService;
         _powerService = powerService;
         _windowService = windowService;
+        _metricsService = metricsService;
     }
 
     public void Start()
@@ -116,6 +118,12 @@ public class ApiServer : IDisposable
                 return Results.NotFound(new { error = "Icon not found" });
             }
             return Results.Bytes(iconBytes, "image/png");
+        });
+
+        _app.MapGet("/api/metrics", () =>
+        {
+            var metrics = _metricsService.GetMetrics();
+            return Results.Json(metrics);
         });
 
         _cts = new CancellationTokenSource();
