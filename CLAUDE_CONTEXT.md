@@ -35,9 +35,11 @@ Remotify_Desktop/
 │   ├── PowerService.cs         — выполнение команд (shutdown/reboot/sleep/hibernate)
 │   ├── SettingsService.cs      — загрузка/сохранение настроек
 │   ├── StartupService.cs       — автозапуск через реестр
-│   └── FirewallService.cs      — управление правилами брандмауэра
+│   ├── FirewallService.cs      — управление правилами брандмауэра
+│   └── WindowService.cs        — список окон и иконки приложений
 └── Models/
-    └── AppSettings.cs          — модель настроек
+    ├── AppSettings.cs          — модель настроек
+    └── AppInfo.cs              — модель информации о приложении
 ```
 
 ## API для мобильного приложения
@@ -60,6 +62,35 @@ Errors:
   401 Unauthorized — неверный токен
   400 Bad Request — неизвестная команда
 ```
+
+### Список открытых приложений
+```
+GET /api/apps
+Headers:
+  Authorization: Bearer <token>
+Response: {
+  "apps": [
+    { "id": "1A2B3C", "title": "Notepad", "processName": "notepad" },
+    { "id": "4D5E6F", "title": "Google Chrome", "processName": "chrome" }
+  ]
+}
+Errors:
+  401 Unauthorized — неверный токен
+```
+- Возвращает только видимые окна верхнего уровня (как в Alt+Tab)
+- `id` — handle окна в hex формате
+
+### Иконка приложения
+```
+GET /api/apps/{id}/icon
+Headers:
+  Authorization: Bearer <token>
+Response: image/png (binary)
+Errors:
+  401 Unauthorized — неверный токен
+  404 Not Found — иконка не найдена
+```
+- `id` — handle окна из списка `/api/apps`
 
 ### Параметры подключения
 - **Порт по умолчанию**: 5123

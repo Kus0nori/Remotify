@@ -27,6 +27,7 @@ public partial class App : Application
     public PowerService PowerService { get; } = new();
     public StartupService StartupService { get; } = new();
     public FirewallService FirewallService { get; } = new();
+    public WindowService WindowService { get; } = new();
     public ApiServer ApiServer { get; private set; } = null!;
 
     public App()
@@ -53,7 +54,7 @@ public partial class App : Application
         ShowWindow(hwnd, SW_HIDE);
 
         SettingsService.Load();
-        ApiServer = new ApiServer(SettingsService, PowerService);
+        ApiServer = new ApiServer(SettingsService, PowerService, WindowService);
 
         CreateTrayIcon();
 

@@ -11,15 +11,17 @@ public class ApiServer : IDisposable
 {
     private readonly SettingsService _settingsService;
     private readonly PowerService _powerService;
+    private readonly WindowService _windowService;
     private WebApplication? _app;
     private CancellationTokenSource? _cts;
 
     public bool IsRunning => _app != null;
 
-    public ApiServer(SettingsService settingsService, PowerService powerService)
+    public ApiServer(SettingsService settingsService, PowerService powerService, WindowService windowService)
     {
         _settingsService = settingsService;
         _powerService = powerService;
+        _windowService = windowService;
     }
 
     public void Start()
@@ -99,6 +101,22 @@ public class ApiServer : IDisposable
         });
 
         _app.MapGet("/api/ping", () => Results.Json(new { status = "ok" }));
+
+        _app.MapGet("/api/apps", () =>
+        {
+            var apps = _windowService.GetVisibleWindows();
+            return Results.Json(new { apps });
+        });
+
+        _app.MapGet("/api/apps/{id}/icon", (string id) =>
+        {
+            var iconBytes = _windowService.GetAppIcon(id);
+            if (iconBytes == null)
+            {
+                return Results.NotFound(new { error = "Icon not found" });
+            }
+            return Results.Bytes(iconBytes, "image/png");
+        });
 
         _cts = new CancellationTokenSource();
         _ = _app.RunAsync(_cts.Token);
