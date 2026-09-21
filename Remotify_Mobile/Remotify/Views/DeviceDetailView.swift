@@ -89,23 +89,38 @@ struct DeviceDetailView: View {
         }
     }
 
+    /// Ряд плиток, как быстрые действия на карточке в «Контактах».
     private var actionsSection: some View {
-        Section("Действия") {
-            ForEach(PowerAction.allCases) { action in
-                Button {
-                    pendingAction = action
-                } label: {
-                    HStack {
-                        Label(action.title, systemImage: action.systemImage)
-                        Spacer()
-                        if runningAction == action {
-                            ProgressView()
+        Section {
+            HStack(spacing: 8) {
+                ForEach(PowerAction.allCases) { action in
+                    Button {
+                        pendingAction = action
+                    } label: {
+                        VStack(spacing: 6) {
+                            Group {
+                                if runningAction == action {
+                                    ProgressView()
+                                } else {
+                                    Image(systemName: action.systemImage)
+                                }
+                            }
+                            .font(.title3)
+                            .frame(height: 24)
+                            .foregroundStyle(action.isDestructive ? Color.red : Color.accentColor)
+
+                            Text(action.title)
+                                .font(.caption)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
                         }
                     }
+                    .buttonStyle(ActionTileButtonStyle())
+                    .disabled(runningAction != nil)
                 }
-                .disabled(runningAction != nil)
-                .foregroundStyle(action.isDestructive ? Color.red : Color.accentColor)
             }
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
         }
     }
 
@@ -227,6 +242,26 @@ struct DeviceDetailView: View {
         } catch {
             result = ActionResult(message: error.localizedDescription, isError: true)
         }
+    }
+}
+
+/// Плитка действия. Свой стиль ещё и нужен, чтобы кнопки в одной строке `List`
+/// нажимались по отдельности, а не все разом тапом по строке.
+private struct ActionTileButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(.primary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 4)
+            .background(
+                Color(.secondarySystemGroupedBackground),
+                in: .rect(cornerRadius: 12)
+            )
+            .opacity(configuration.isPressed ? 0.6 : isEnabled ? 1 : 0.4)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 

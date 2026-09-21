@@ -78,14 +78,27 @@ struct MetricsSection: View {
 
     private func networkRow(_ metrics: SystemMetrics) -> some View {
         LabeledContent {
-            VStack(alignment: .trailing, spacing: 2) {
-                Label(Self.rate(metrics.networkDownloadBps), systemImage: "arrow.down")
-                Label(Self.rate(metrics.networkUploadBps), systemImage: "arrow.up")
+            HStack(spacing: 10) {
+                rateView(metrics.networkDownloadBps, systemImage: "arrow.down")
+                rateView(metrics.networkUploadBps, systemImage: "arrow.up")
             }
-            .labelStyle(TrailingIconLabelStyle())
         } label: {
             Label("Сеть", systemImage: "network")
         }
+    }
+
+    /// Ширина зарезервирована под самое длинное значение, поэтому при смене
+    /// количества цифр стрелки и соседнее значение не прыгают.
+    private func rateView(_ bytesPerSecond: Int64, systemImage: String) -> some View {
+        HStack(spacing: 2) {
+            Image(systemName: systemImage)
+                .font(.caption)
+            ZStack(alignment: .trailing) {
+                Text(Self.rate(999_900_000)).hidden()
+                Text(Self.rate(bytesPerSecond))
+            }
+        }
+        .lineLimit(1)
     }
 
     private static func tint(for percent: Double) -> Color {
@@ -104,26 +117,24 @@ struct MetricsSection: View {
         value.formatted(.number.precision(.fractionLength(1)))
     }
 
+    /// Всегда один знак после запятой и не меньше КБ — так длина строки почти не меняется
+    /// (`.byteCount` скачет между «0 байт», «890 КБ» и «1,2 МБ»).
     private static func rate(_ bytesPerSecond: Int64) -> String {
-        "\(max(bytesPerSecond, 0).formatted(.byteCount(style: .decimal)))/с"
+        let units = ["КБ/с", "МБ/с", "ГБ/с"]
+        var value = Double(max(bytesPerSecond, 0)) / 1000
+        var unit = 0
+        // Округляем заранее, чтобы 999,96 КБ/с не превращалось в «1000,0 КБ/с».
+        while (value * 10).rounded() / 10 >= 1000, unit < units.count - 1 {
+            value /= 1000
+            unit += 1
+        }
+        return "\(value.formatted(.number.precision(.fractionLength(1)))) \(units[unit])"
     }
 
     private static func uptime(_ seconds: Int64) -> String {
         Duration.seconds(seconds).formatted(
             .units(allowed: [.days, .hours, .minutes], width: .abbreviated, maximumUnitCount: 2)
         )
-    }
-}
-
-/// Значение слева, стрелка справа — чтобы цифры в столбик выравнивались по правому краю.
-private struct TrailingIconLabelStyle: LabelStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 4) {
-            configuration.title
-            configuration.icon
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
     }
 }
 
