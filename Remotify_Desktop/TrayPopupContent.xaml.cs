@@ -44,6 +44,71 @@ public sealed partial class TrayPopupContent : UserControl
             StatusIcon.Glyph = "\uE711";
             StatusIcon.Foreground = new SolidColorBrush(Colors.Red);
         }
+
+        UpdateServiceStatus();
+    }
+
+    private void UpdateServiceStatus()
+    {
+        var installer = AppInstance.ServiceInstaller;
+
+        if (installer.IsInstalled)
+        {
+            if (installer.IsRunning)
+            {
+                ServiceStatusText.Text = "Запущен";
+                ServiceStatusIcon.Glyph = "\uE73E";
+                ServiceStatusIcon.Foreground = new SolidColorBrush(Colors.Green);
+                ServiceActionButton.Content = "Удалить";
+            }
+            else
+            {
+                ServiceStatusText.Text = "Остановлен";
+                ServiceStatusIcon.Glyph = "\uE946";
+                ServiceStatusIcon.Foreground = new SolidColorBrush(Colors.Orange);
+                ServiceActionButton.Content = "Удалить";
+            }
+        }
+        else
+        {
+            ServiceStatusText.Text = "Не установлен";
+            ServiceStatusIcon.Glyph = "\uE946";
+            ServiceStatusIcon.Foreground = new SolidColorBrush(Colors.Gray);
+            ServiceActionButton.Content = "Установить";
+        }
+    }
+
+    private async void ServiceAction_Click(object sender, RoutedEventArgs e)
+    {
+        var installer = AppInstance.ServiceInstaller;
+        ServiceActionButton.IsEnabled = false;
+
+        try
+        {
+            if (installer.IsInstalled)
+            {
+                await installer.UninstallAsync();
+                AppInstance.SettingsService.Settings.ServiceInstalled = false;
+            }
+            else
+            {
+                // Sync settings to ProgramData before installing
+                AppInstance.SettingsService.SyncSharedSettings();
+                await installer.InstallAsync();
+                AppInstance.SettingsService.Settings.ServiceInstalled = true;
+            }
+
+            AppInstance.SettingsService.Save();
+        }
+        catch
+        {
+            // Installation failed or user cancelled UAC
+        }
+        finally
+        {
+            ServiceActionButton.IsEnabled = true;
+            UpdateServiceStatus();
+        }
     }
 
     private static string GetLocalIpAddress()
