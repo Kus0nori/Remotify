@@ -37,11 +37,12 @@
 
                 <!-- IP Address -->
                 <controls:SettingsCard Header="IP-адрес"
-                                       Description="Локальный адрес в сети">
+                                       Description="Локальный адрес в сети"
+                                       ContentAlignment="Right">
                     <controls:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE774;" />
                     </controls:SettingsCard.HeaderIcon>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                         <TextBlock x:Name="IpAddressText"
                                    VerticalAlignment="Center"
                                    Style="{StaticResource BodyTextBlockStyle}" />
@@ -53,16 +54,16 @@
 
                 <!-- Port -->
                 <controls:SettingsCard Header="Порт"
-                                       Description="Порт API сервера">
+                                       Description="Порт API сервера"
+                                       ContentAlignment="Right">
                     <controls:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE968;" />
                     </controls:SettingsCard.HeaderIcon>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <NumberBox x:Name="PortNumberBox"
-                                   Minimum="1" Maximum="65535"
-                                   SpinButtonPlacementMode="Compact"
-                                   Width="120" />
-                    </StackPanel>
+                    <NumberBox x:Name="PortNumberBox"
+                               Minimum="1" Maximum="65535"
+                               SpinButtonPlacementMode="Compact"
+                               Width="120"
+                               HorizontalAlignment="Right" />
                 </controls:SettingsCard>
 
                 <!-- Authorization Section Header -->
@@ -98,24 +99,28 @@
 
                 <!-- Auto Start -->
                 <controls:SettingsCard Header="Автозапуск"
-                                       Description="Запускать при старте Windows">
+                                       Description="Запускать при старте Windows"
+                                       ContentAlignment="Right">
                     <controls:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE7E8;" />
                     </controls:SettingsCard.HeaderIcon>
                     <ToggleSwitch x:Name="AutoStartToggle"
                                   OnContent="" OffContent=""
-                                  Toggled="AutoStartToggle_Toggled" />
+                                  Toggled="AutoStartToggle_Toggled"
+                                  HorizontalAlignment="Right" />
                 </controls:SettingsCard>
 
                 <!-- Firewall -->
                 <controls:SettingsCard Header="Брандмауэр"
-                                       Description="Открыть порт (требует прав администратора)">
+                                       Description="Открыть порт (требует прав администратора)"
+                                       ContentAlignment="Right">
                     <controls:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE83D;" />
                     </controls:SettingsCard.HeaderIcon>
                     <ToggleSwitch x:Name="FirewallToggle"
                                   OnContent="" OffContent=""
-                                  Toggled="FirewallToggle_Toggled" />
+                                  Toggled="FirewallToggle_Toggled"
+                                  HorizontalAlignment="Right" />
                 </controls:SettingsCard>
 
                 <!-- Info -->

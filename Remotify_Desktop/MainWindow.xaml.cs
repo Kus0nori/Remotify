@@ -37,7 +37,7 @@ public partial class MainWindow : Window
 
         if (_appWindow == null) return;
 
-        _appWindow.Resize(new SizeInt32(500, 700));
+        _appWindow.Resize(new SizeInt32(600, 700));
         _appWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
 
         if (_appWindow.Presenter is OverlappedPresenter presenter)
