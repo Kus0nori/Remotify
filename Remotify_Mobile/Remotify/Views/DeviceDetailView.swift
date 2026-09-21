@@ -4,9 +4,13 @@ struct DeviceDetailView: View {
     let device: Device
 
     @Environment(DeviceStore.self) private var store
+    @Environment(LocalNetworkMonitor.self) private var network
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var status: Status = .unknown
+    /// Последний однозначный результат проверки. Пока идёт повторная проверка
+    /// (`.unknown` / `.checking`), экран не переключается.
+    @State private var isReachable: Bool?
     @State private var metrics: SystemMetrics?
     @State private var appCount: Int?
     @State private var metricsError: String?
@@ -25,14 +29,46 @@ struct DeviceDetailView: View {
         let isError: Bool
     }
 
-    var body: some View {
-        List {
-            actionsSection
-            offlineSection
-            MetricsSection(device: device, metrics: metrics, appCount: appCount, errorMessage: metricsError)
-            widgetSection
-            resultSection
+    private enum Screen {
+        /// Телефон не в той сети, где ПК.
+        case offNetwork
+        /// Первая проверка ещё не закончилась.
+        case loading
+        /// В локальной сети, пк отвечает
+        case online
+        /// В лоокальной сети, пк НЕ отвечает.
+        case asleep
+    }
+
+    /// Перезапускает опрос при сворачивании приложения и смене сети.
+    private struct PollTrigger: Equatable {
+        let isActive: Bool
+        let isOnLocalNetwork: Bool
+    }
+
+    private var isOnLocalNetwork: Bool {
+        network.isOnSameNetwork(as: device.host)
+    }
+
+    private var screen: Screen {
+        guard isOnLocalNetwork else { return .offNetwork }
+        switch isReachable {
+        case nil: return .loading
+        case true?: return .online
+        case false?: return .asleep
         }
+    }
+
+    var body: some View {
+        Group {
+            switch screen {
+            case .offNetwork: offNetworkScreen
+            case .loading: ProgressView()
+            case .online: onlineScreen
+            case .asleep: asleepScreen
+            }
+        }
+        .animation(.default, value: screen)
         .navigationTitle(device.name)
         // Статус рисуем рядом с названием, а в большой заголовок свои вью не вставить.
         .navigationBarTitleDisplayMode(.inline)
@@ -40,17 +76,15 @@ struct DeviceDetailView: View {
             ToolbarItem(placement: .principal) { titleView }
             ToolbarItem(placement: .primaryAction) {
                 Button("Обновить", systemImage: "arrow.clockwise") {
-                    Task { await refreshStatus() }
+                    Task { await manualRefresh() }
                 }
-                .disabled(isChecking)
+                .disabled(isChecking || !isOnLocalNetwork)
             }
         }
-        .refreshable { await refreshStatus() }
-        .task { await refreshStatus() }
-        // Задача отменяется, когда экран уходит из вида или приложение сворачивается.
-        .task(id: scenePhase) {
-            guard scenePhase == .active else { return }
-            await pollMetrics()
+        // Задача отменяется, когда экран уходит из вида, приложение сворачивается или меняется сеть.
+        .task(id: PollTrigger(isActive: scenePhase == .active, isOnLocalNetwork: isOnLocalNetwork)) {
+            guard scenePhase == .active, isOnLocalNetwork else { return }
+            await poll()
         }
         .confirmationDialog(
             pendingAction?.confirmationMessage(deviceName: device.name) ?? "",
@@ -78,14 +112,71 @@ struct DeviceDetailView: View {
         .accessibilityValue(statusTitle)
     }
 
-    @ViewBuilder
-    private var offlineSection: some View {
-        if case .offline(let message) = status {
+    // MARK: - Экраны
+
+    private var onlineScreen: some View {
+        List {
+            actionsSection
+            MetricsSection(device: device, metrics: metrics, appCount: appCount, errorMessage: metricsError)
+            widgetSection
+            resultSection
+        }
+        .refreshable { await manualRefresh() }
+    }
+
+    private var asleepScreen: some View {
+        List {
             Section {
-                Label(message, systemImage: "wifi.exclamationmark")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                VStack(spacing: 8) {
+                    Image(systemName: "powersleep")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.secondary)
+                        .padding(.bottom, 4)
+                    Text("ПК не отвечает")
+                        .font(.title3.bold())
+                    Text("Он спит, выключен или Remotify на нём не запущен.")
+                        .foregroundStyle(.secondary)
+                    if case .offline(let message) = status {
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .listRowBackground(Color.clear)
             }
+
+            Section {
+                // TODO: Wake-on-LAN. Без multicast-entitlement broadcast в iOS запрещён,
+                // остаётся unicast на IP ПК — будит из сна, но не после выключения.
+                Button {} label: {
+                    Label("Разбудить", systemImage: "power")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(true)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+            } footer: {
+                Text("Включение по сети (Wake-on-LAN) появится позже.")
+                    .frame(maxWidth: .infinity)
+                    .multilineTextAlignment(.center)
+            }
+
+            resultSection
+            widgetSection
+        }
+        .refreshable { await manualRefresh() }
+    }
+
+    private var offNetworkScreen: some View {
+        ContentUnavailableView {
+            Label("Не в локальной сети", systemImage: "wifi.slash")
+        } description: {
+            Text("Подключитесь к той же сети, что и «\(device.name)» (\(device.displayAddress)), чтобы управлять им.")
         }
     }
 
@@ -161,7 +252,8 @@ struct DeviceDetailView: View {
     }
 
     private var statusTitle: String {
-        switch status {
+        guard isOnLocalNetwork else { return "Не в локальной сети" }
+        return switch status {
         case .unknown: "Неизвестно"
         case .checking: "Проверка…"
         case .online: "На связи"
@@ -179,42 +271,57 @@ struct DeviceDetailView: View {
     }
 
     private var statusColor: Color {
-        switch status {
+        guard isOnLocalNetwork else { return .secondary }
+        return switch status {
         case .unknown, .checking: .secondary
         case .online: .green
         case .offline: .red
         }
     }
 
-    private func refreshStatus() async {
-        status = .checking
-        do {
-            try await APIClient.shared.ping(host: device.host, port: device.port)
-            status = .online
-        } catch {
-            status = .offline(error.localizedDescription)
+    /// Десктоп пересчитывает метрики раз в секунду, чаще спрашивать нет смысла.
+    /// Опрос идёт и на экране «ПК не отвечает» — чтобы заметить, что ПК проснулся.
+    private func poll() async {
+        if case .unknown = status { status = .checking }
+        while !Task.isCancelled {
+            await refresh()
+            try? await Task.sleep(for: .seconds(2))
         }
     }
 
-    /// Десктоп пересчитывает метрики раз в секунду, чаще спрашивать нет смысла.
-    private func pollMetrics() async {
+    private func manualRefresh() async {
+        status = .checking
+        await refresh()
+    }
+
+    /// Отдельный ping не нужен: ответ на запрос метрик и так показывает, на связи ли ПК.
+    private func refresh() async {
+        guard isOnLocalNetwork else { return }
         guard let token = store.token(for: device) else {
             metricsError = "Токен для этого устройства не найден. Добавьте устройство заново."
+            status = .online
+            isReachable = true
             return
         }
 
-        while !Task.isCancelled {
-            // Список окон нужен только ради количества; если он не пришёл, метрики всё равно показываем.
-            async let apps = try? APIClient.shared.apps(from: device, token: token)
-            do {
-                metrics = try await APIClient.shared.metrics(from: device, token: token)
-                appCount = await apps?.count
-                metricsError = nil
-            } catch {
-                guard !Task.isCancelled else { return }
-                metricsError = error.localizedDescription
-            }
-            try? await Task.sleep(for: .seconds(2))
+        // Список окон нужен только ради количества; если он не пришёл, метрики всё равно показываем.
+        async let apps = try? APIClient.shared.apps(from: device, token: token)
+        do {
+            metrics = try await APIClient.shared.metrics(from: device, token: token)
+            appCount = await apps?.count
+            metricsError = nil
+            status = .online
+            isReachable = true
+        } catch APIError.transport(let message) {
+            guard !Task.isCancelled else { return }
+            status = .offline(message)
+            isReachable = false
+        } catch {
+            guard !Task.isCancelled else { return }
+            // ПК ответил, но не метриками (неверный токен, старая версия без /api/metrics) — он всё равно на связи.
+            metricsError = error.localizedDescription
+            status = .online
+            isReachable = true
         }
     }
 
@@ -270,4 +377,5 @@ private struct ActionTileButtonStyle: ButtonStyle {
         DeviceDetailView(device: Device(name: "Домашний ПК", host: "192.168.1.10", port: 5123))
     }
     .environment(DeviceStore())
+    .environment(LocalNetworkMonitor())
 }

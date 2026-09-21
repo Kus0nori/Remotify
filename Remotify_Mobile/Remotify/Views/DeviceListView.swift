@@ -68,4 +68,5 @@ private struct DeviceRow: View {
 #Preview {
     DeviceListView()
         .environment(DeviceStore())
+        .environment(LocalNetworkMonitor())
 }
