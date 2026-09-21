@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using H.NotifyIcon;
 using Remotify.Services;
+using Remotify.Shared.Services;
 using WinRT.Interop;
 
 namespace Remotify;
@@ -25,12 +26,14 @@ public partial class App : Application
     public static new App Current => (App)Application.Current;
 
     public SettingsService SettingsService { get; } = new();
-    public PowerService PowerService { get; } = new();
+    public Remotify.Shared.Services.PowerService PowerService { get; } = new();
     public StartupService StartupService { get; } = new();
     public FirewallService FirewallService { get; } = new();
     public WindowService WindowService { get; } = new();
     public MetricsService MetricsService { get; } = new();
     public ApiServer ApiServer { get; private set; } = null!;
+    public IpcServerService IpcServer { get; private set; } = null!;
+    public ServiceInstallerService ServiceInstaller { get; } = new();
 
     public App()
     {
@@ -55,10 +58,12 @@ public partial class App : Application
 
         SettingsService.Load();
         ApiServer = new ApiServer(SettingsService, PowerService, WindowService, MetricsService);
+        IpcServer = new IpcServerService(WindowService, MetricsService);
 
         CreateTrayIcon();
 
         ApiServer.Start();
+        IpcServer.Start();
 
         if (!IsAutoStartLaunch() && !SettingsService.Settings.FirstRunCompleted)
         {
@@ -114,6 +119,7 @@ public partial class App : Application
         try
         {
             _trayIcon?.Dispose();
+            IpcServer?.Dispose();
             ApiServer?.Dispose();
             MetricsService?.Dispose();
             _mutex?.ReleaseMutex();

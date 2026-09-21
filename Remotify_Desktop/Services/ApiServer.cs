@@ -3,14 +3,15 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Remotify.Models;
+using Remotify.Shared.Models;
+using Remotify.Shared.Services;
 
 namespace Remotify.Services;
 
 public class ApiServer : IDisposable
 {
     private readonly SettingsService _settingsService;
-    private readonly PowerService _powerService;
+    private readonly Remotify.Shared.Services.PowerService _powerService;
     private readonly WindowService _windowService;
     private readonly MetricsService _metricsService;
     private WebApplication? _app;
@@ -18,7 +19,7 @@ public class ApiServer : IDisposable
 
     public bool IsRunning => _app != null;
 
-    public ApiServer(SettingsService settingsService, PowerService powerService, WindowService windowService, MetricsService metricsService)
+    public ApiServer(SettingsService settingsService, Remotify.Shared.Services.PowerService powerService, WindowService windowService, MetricsService metricsService)
     {
         _settingsService = settingsService;
         _powerService = powerService;

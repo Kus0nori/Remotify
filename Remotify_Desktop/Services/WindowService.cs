@@ -3,7 +3,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Text;
-using Remotify.Models;
+using Remotify.Shared.Models;
 
 namespace Remotify.Services;
 

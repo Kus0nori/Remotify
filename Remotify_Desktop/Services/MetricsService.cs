@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
-using Remotify.Models;
+using Remotify.Shared.Models;
 
 namespace Remotify.Services;
 

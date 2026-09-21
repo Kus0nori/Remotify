@@ -1,0 +1,9 @@
+namespace Remotify.Shared.Models;
+
+public class AppInfo
+{
+    public required string Id { get; init; }
+    public required string Title { get; init; }
+    public required string ProcessName { get; init; }
+    public bool MayHaveUnsavedChanges { get; init; }
+}

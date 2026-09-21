@@ -75,7 +75,7 @@ public partial class MainWindow : Window
 
         if (_appWindow == null) return;
 
-        _appWindow.Resize(new SizeInt32(400, 580));
+        _appWindow.Resize(new SizeInt32(400, 680));
         _appWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
 
         if (_appWindow.Presenter is OverlappedPresenter presenter)
@@ -207,6 +207,7 @@ public partial class MainWindow : Window
         FirewallToggle.IsOn = settings.FirewallRuleEnabled;
 
         UpdateServerStatus();
+        UpdateServiceStatus();
     }
 
     private void UpdateServerStatus()
@@ -387,5 +388,70 @@ public partial class MainWindow : Window
             timer.Stop();
         };
         timer.Start();
+    }
+
+    private void UpdateServiceStatus()
+    {
+        var installer = AppInstance.ServiceInstaller;
+
+        if (installer.IsInstalled)
+        {
+            if (installer.IsRunning)
+            {
+                ServiceStatusText.Text = "Запущен";
+                ServiceIcon.Glyph = "\uE73E";
+                ServiceIcon.Foreground = new SolidColorBrush(Colors.Green);
+                ServiceActionButton.Content = "Удалить";
+            }
+            else
+            {
+                ServiceStatusText.Text = "Остановлен";
+                ServiceIcon.Glyph = "\uE946";
+                ServiceIcon.Foreground = new SolidColorBrush(Colors.Orange);
+                ServiceActionButton.Content = "Удалить";
+            }
+        }
+        else
+        {
+            ServiceStatusText.Text = "Не установлен";
+            ServiceIcon.Glyph = "\uE946";
+            ServiceIcon.Foreground = new SolidColorBrush(Colors.Gray);
+            ServiceActionButton.Content = "Установить";
+        }
+    }
+
+    private async void ServiceAction_Click(object sender, RoutedEventArgs e)
+    {
+        var installer = AppInstance.ServiceInstaller;
+        ServiceActionButton.IsEnabled = false;
+
+        try
+        {
+            if (installer.IsInstalled)
+            {
+                await installer.UninstallAsync();
+                AppInstance.SettingsService.Settings.ServiceInstalled = false;
+                ShowInfoMessage("Сервис удалён", InfoBarSeverity.Success);
+            }
+            else
+            {
+                // Sync settings to ProgramData before installing
+                AppInstance.SettingsService.SyncSharedSettings();
+                await installer.InstallAsync();
+                AppInstance.SettingsService.Settings.ServiceInstalled = true;
+                ShowInfoMessage("Сервис установлен", InfoBarSeverity.Success);
+            }
+
+            AppInstance.SettingsService.Save();
+        }
+        catch (Exception ex)
+        {
+            ShowInfoMessage($"Ошибка: {ex.Message}", InfoBarSeverity.Error);
+        }
+        finally
+        {
+            ServiceActionButton.IsEnabled = true;
+            UpdateServiceStatus();
+        }
     }
 }

@@ -27,6 +27,33 @@
         <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
         <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.12" />
         <PackageReference Include="System.Drawing.Common" Version="10.0.12" />
+        <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.12" />
     </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Remotify.Shared\Remotify.Shared.csproj" />
+      <ProjectReference Include="..\Remotify.Service\Remotify.Service.csproj">
+        <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      </ProjectReference>
+    </ItemGroup>
+
+    <!-- Copy Service executable and all dependencies to output -->
+    <Target Name="CopyServiceExecutable" AfterTargets="Build">
+      <PropertyGroup>
+        <ServiceBinDir>..\Remotify.Service\bin\$(Configuration)\net10.0\</ServiceBinDir>
+      </PropertyGroup>
+      <ItemGroup>
+        <ServiceFiles Include="$(ServiceBinDir)Remotify.Service.exe" />
+        <ServiceFiles Include="$(ServiceBinDir)Remotify.Service.dll" />
+        <ServiceFiles Include="$(ServiceBinDir)Remotify.Service.runtimeconfig.json" />
+        <ServiceFiles Include="$(ServiceBinDir)Remotify.Service.deps.json" />
+        <ServiceFiles Include="$(ServiceBinDir)Microsoft.Extensions.Hosting.WindowsServices.dll" />
+        <ServiceFiles Include="$(ServiceBinDir)System.ServiceProcess.ServiceController.dll" />
+        <ServiceFiles Include="$(ServiceBinDir)Remotify.Shared.dll" />
+        <ServiceRuntimeFiles Include="$(ServiceBinDir)runtimes\**\*" />
+      </ItemGroup>
+      <Copy SourceFiles="@(ServiceFiles)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+      <Copy SourceFiles="@(ServiceRuntimeFiles)" DestinationFolder="$(OutputPath)runtimes\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    </Target>
 
 </Project>
