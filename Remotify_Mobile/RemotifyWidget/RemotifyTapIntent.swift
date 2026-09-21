@@ -1,7 +1,8 @@
 import AppIntents
 import WidgetKit
 
-/// Тап по виджету. Первый тап «взводит», второй — выполняет.
+/// Тап по виджету. Если ПК на связи, первый тап «взводит», второй — выполняет.
+/// Если ПК спит или телефон не в его сети — тап просто перепроверяет состояние.
 /// Интент несёт все параметры в себе, поэтому выполняется прямо в расширении,
 /// не открывая приложение.
 struct RemotifyTapIntent: AppIntent {
@@ -26,6 +27,7 @@ struct RemotifyTapIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
+        let device = Device(name: name, host: host, port: port)
         let key = WidgetStateStore.key(host: host, port: port, action: action)
         var state = WidgetStateStore.load(key)
 
@@ -33,12 +35,7 @@ struct RemotifyTapIntent: AppIntent {
             state.armedUntil = nil
             state.resultAt = .now
             do {
-                let outcome = try await APIClient.shared.send(
-                    action,
-                    to: Device(name: name, host: host, port: port),
-                    token: token
-                )
-                switch outcome {
+                switch try await APIClient.shared.send(action, to: device, token: token) {
                 case .confirmed: state.resultMessage = "Выполнено"
                 case .noResponse: state.resultMessage = "Отправлено"
                 }
@@ -47,13 +44,19 @@ struct RemotifyTapIntent: AppIntent {
                 state.resultMessage = Self.shortMessage(for: error)
                 state.resultIsError = true
             }
+            WidgetStateStore.save(state, forKey: key)
         } else {
-            state.armedUntil = Date.now.addingTimeInterval(WidgetStateStore.armWindow)
+            // Перед взводом убеждаемся, что ПК на связи: иначе «Подтвердить?» на спящем ПК
+            // закончится ошибкой, а виджет заодно покажет актуальное состояние.
+            state = await WidgetStateStore.refreshReachability(of: device, key: key)
             state.resultMessage = nil
             state.resultAt = nil
+            state.armedUntil = state.reachability == .online
+                ? Date.now.addingTimeInterval(WidgetStateStore.armWindow)
+                : nil
+            WidgetStateStore.save(state, forKey: key)
         }
 
-        WidgetStateStore.save(state, forKey: key)
         await WidgetCenter.shared.reloadTimelines(ofKind: RemotifyControlWidget.kind)
         return .result()
     }

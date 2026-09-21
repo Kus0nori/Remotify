@@ -6,20 +6,32 @@ struct RemotifyEntry: TimelineEntry {
     let date: Date
     let configuration: RemotifyWidgetConfiguration
     let phase: WidgetPhase
+    let reachability: Reachability?
 }
 
 struct RemotifyProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> RemotifyEntry {
-        RemotifyEntry(date: .now, configuration: RemotifyWidgetConfiguration(), phase: .idle)
+        RemotifyEntry(date: .now, configuration: RemotifyWidgetConfiguration(), phase: .idle, reachability: .online)
     }
 
+    /// Снапшот для галереи и превью — без сети, из последнего сохранённого состояния.
     func snapshot(for configuration: RemotifyWidgetConfiguration, in context: Context) async -> RemotifyEntry {
-        RemotifyEntry(date: .now, configuration: configuration, phase: phase(for: configuration, at: .now))
+        guard configuration.isConfigured else { return unconfiguredEntry(configuration) }
+        let state = WidgetStateStore.load(configuration.stateKey)
+        return entry(configuration, state: state, at: .now)
     }
 
     func timeline(for configuration: RemotifyWidgetConfiguration, in context: Context) async -> Timeline<RemotifyEntry> {
+        guard configuration.isConfigured else {
+            // Новые параметры сами перезагрузят таймлайн.
+            return Timeline(entries: [unconfiguredEntry(configuration)], policy: .never)
+        }
+
         let now = Date.now
-        let state = WidgetStateStore.load(configuration.stateKey)
+        var state = WidgetStateStore.load(configuration.stateKey)
+        if !state.isReachabilityFresh(at: now) {
+            state = await WidgetStateStore.refreshReachability(of: configuration.device, key: configuration.stateKey)
+        }
 
         // Запись на «сейчас» плюс моменты, когда взвод и результат сами истекают,
         // иначе виджет застрянет на «Подтвердить?».
@@ -32,15 +44,21 @@ struct RemotifyProvider: AppIntentTimelineProvider {
             if expiry > now { dates.append(expiry) }
         }
 
-        let entries = dates.sorted().map { date in
-            RemotifyEntry(date: date, configuration: configuration, phase: phase(for: configuration, at: date))
-        }
-        return Timeline(entries: entries, policy: .atEnd)
+        let entries = dates.sorted().map { entry(configuration, state: state, at: $0) }
+        // Когда результат истечёт — перепроверить ПК сразу: после «Сон» он уже спит.
+        // В остальное время — по расписанию.
+        let policy: TimelineReloadPolicy = dates.count > 1
+            ? .atEnd
+            : .after(now.addingTimeInterval(WidgetStateStore.refreshInterval))
+        return Timeline(entries: entries, policy: policy)
     }
 
-    private func phase(for configuration: RemotifyWidgetConfiguration, at date: Date) -> WidgetPhase {
-        guard configuration.isConfigured else { return .unconfigured }
-        return WidgetStateStore.load(configuration.stateKey).phase(at: date)
+    private func entry(_ configuration: RemotifyWidgetConfiguration, state: WidgetState, at date: Date) -> RemotifyEntry {
+        RemotifyEntry(date: date, configuration: configuration, phase: state.phase(at: date), reachability: state.reachability)
+    }
+
+    private func unconfiguredEntry(_ configuration: RemotifyWidgetConfiguration) -> RemotifyEntry {
+        RemotifyEntry(date: .now, configuration: configuration, phase: .unconfigured, reachability: nil)
     }
 }
 
@@ -56,13 +74,15 @@ struct RemotifyControlWidget: Widget {
             RemotifyWidgetView(entry: entry)
         }
         .configurationDisplayName("Управление ПК")
-        .description("Первое нажатие спрашивает подтверждение, второе выполняет действие.")
+        .description("Показывает, на связи ли ПК. Первое нажатие спрашивает подтверждение, второе выполняет действие.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
 
 struct RemotifyWidgetView: View {
     let entry: RemotifyEntry
+
+    private var action: PowerAction { entry.configuration.action }
 
     private var isUnconfigured: Bool {
         if case .unconfigured = entry.phase { return true }
@@ -74,7 +94,7 @@ struct RemotifyWidgetView: View {
             VStack(alignment: .leading, spacing: 4) {
                 header
                 Spacer(minLength: 0)
-                status
+                content
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
@@ -88,23 +108,59 @@ struct RemotifyWidgetView: View {
             Image(systemName: "desktopcomputer")
             Text(entry.configuration.name)
                 .lineLimit(1)
+            if let color = statusColor {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 6))
+                    .foregroundStyle(color)
+            }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
     }
 
+    /// Та же точка, что в приложении рядом с названием ПК.
+    private var statusColor: Color? {
+        switch entry.reachability {
+        case .online: .green
+        case .asleep: .red
+        case .offNetwork: .secondary
+        case nil: nil
+        }
+    }
+
     @ViewBuilder
-    private var status: some View {
+    private var content: some View {
         switch entry.phase {
         case .unconfigured:
             Label("Настройте виджет", systemImage: "gearshape")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
+        case .offNetwork:
+            statusBlock(
+                systemImage: "wifi.slash",
+                title: "Не в сети ПК",
+                subtitle: "Подключитесь к его Wi-Fi"
+            )
+
+        case .asleep:
+            // TODO: Wake-on-LAN — здесь будет «Разбудить».
+            statusBlock(
+                systemImage: "powersleep",
+                title: "ПК спит",
+                subtitle: "Нажмите, чтобы проверить"
+            )
+
         case .idle:
-            Label(entry.configuration.action.title, systemImage: entry.configuration.action.systemImage)
-                .font(.headline)
-                .foregroundStyle(entry.configuration.action.isDestructive ? Color.red : Color.primary)
+            VStack(alignment: .leading, spacing: 4) {
+                Image(systemName: action.systemImage)
+                    .font(.title)
+                Text(action.title)
+                    .font(.headline)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .foregroundStyle(action.isDestructive ? Color.red : Color.accentColor)
 
         case .armed(let until):
             VStack(alignment: .leading, spacing: 6) {
@@ -115,7 +171,7 @@ struct RemotifyWidgetView: View {
                     .foregroundStyle(.secondary)
                 ProgressView(timerInterval: entry.date...until, countsDown: true)
                     .labelsHidden()
-                    .tint(entry.configuration.action.isDestructive ? .red : .accentColor)
+                    .tint(action.isDestructive ? .red : .accentColor)
             }
 
         case .result(let message, let isError):
@@ -125,4 +181,29 @@ struct RemotifyWidgetView: View {
                 .lineLimit(2)
         }
     }
+
+    private func statusBlock(systemImage: String, title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Image(systemName: systemImage)
+                .font(.title)
+                .foregroundStyle(.secondary)
+            Text(title)
+                .font(.headline)
+                .lineLimit(1)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+    }
+}
+
+#Preview(as: .systemSmall) {
+    RemotifyControlWidget()
+} timeline: {
+    let configuration = RemotifyWidgetConfiguration()
+    RemotifyEntry(date: .now, configuration: configuration, phase: .idle, reachability: .online)
+    RemotifyEntry(date: .now, configuration: configuration, phase: .armed(until: .now.addingTimeInterval(5)), reachability: .online)
+    RemotifyEntry(date: .now, configuration: configuration, phase: .asleep, reachability: .asleep)
+    RemotifyEntry(date: .now, configuration: configuration, phase: .offNetwork, reachability: .offNetwork)
 }

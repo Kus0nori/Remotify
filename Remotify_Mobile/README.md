@@ -32,7 +32,11 @@ SwiftUI-приложение для управления ПК с запущен�
 который едет внутри `Remotify.app/PlugIns/`, а не ставится отдельным приложением.
 
 - **Настройка**: долгое нажатие → «Изменить виджет». Название, адрес, порт, токен
-  и действие (`RemotifyWidgetConfiguration`).
+  и действие (`RemotifyWidgetConfiguration`) — у каждого виджета свои.
+- **Состояние ПК** (`Reachability` в `Shared/LocalNetwork.swift`): подсеть + `GET /api/ping`.
+  «Не в сети ПК» / «ПК спит» / действие. Проверяется при каждом тапе, после истечения
+  результата команды и по расписанию раз в 15 минут (чаще не даёт бюджет WidgetKit),
+  поэтому в покое состояние может отставать. Тап по «спит» / «не в сети» перепроверяет.
 - **Подтверждение**: первый тап взводит виджет на 5 секунд и показывает
   «Подтвердить?» с обратным отсчётом, второй — выполняет команду и показывает
   результат на минуту. Оба тапа обрабатывает `RemotifyTapIntent` внутри
@@ -48,7 +52,8 @@ Remotify_Mobile/
 ├── Shared/                     — явные file refs, входит в ОБА таргета
 │   ├── Device.swift            — имя, хост, порт (токен здесь НЕ хранится)
 │   ├── PowerAction.swift       — shutdown / reboot / sleep / hibernate + AppEnum
-│   └── APIClient.swift         — ping + command + авторизованный fetch поверх URLSession
+│   ├── APIClient.swift         — ping + command + авторизованный fetch поверх URLSession
+│   └── LocalNetwork.swift      — IPv4Subnet (в одной ли сети с ПК) + Reachability
 ├── Remotify/                   — synchronized folder (Xcode 16), файлы не надо
 │   │                             регистрировать в project.pbxproj вручную
 │   ├── RemotifyApp.swift
@@ -58,7 +63,7 @@ Remotify_Mobile/
 │   ├── Services/
 │   │   ├── DeviceStore.swift   — @Observable, список в UserDefaults
 │   │   ├── Keychain.swift      — токены в Keychain по UUID устройства
-│   │   ├── LocalNetworkMonitor.swift — в одной ли подсети телефон и ПК
+│   │   ├── LocalNetworkMonitor.swift — подсети телефона, обновляются при смене сети
 │   │   └── APIClient+Monitoring.swift — apps / appIcon / metrics (только в приложении)
 │   └── Views/
 └── RemotifyWidget/             — synchronized folder, таргет расширения
