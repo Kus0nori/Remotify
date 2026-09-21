@@ -17,7 +17,7 @@ struct DeviceDetailView: View {
     @State private var pendingAction: PowerAction?
     @State private var runningAction: PowerAction?
     @State private var result: ActionResult?
-    @State private var copied: String?
+    @State private var copyCount = 0
 
     private enum Status {
         case unknown, checking, online, offline(String)
@@ -74,12 +74,7 @@ struct DeviceDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) { titleView }
-            ToolbarItem(placement: .primaryAction) {
-                Button("Обновить", systemImage: "arrow.clockwise") {
-                    Task { await manualRefresh() }
-                }
-                .disabled(isChecking || !isOnLocalNetwork)
-            }
+            ToolbarItem(placement: .primaryAction) { moreMenu }
         }
         // Задача отменяется, когда экран уходит из вида, приложение сворачивается или меняется сеть.
         .task(id: PollTrigger(isActive: scenePhase == .active, isOnLocalNetwork: isOnLocalNetwork)) {
@@ -118,7 +113,6 @@ struct DeviceDetailView: View {
         List {
             actionsSection
             MetricsSection(device: device, metrics: metrics, appCount: appCount, errorMessage: metricsError)
-            widgetSection
             resultSection
         }
         .refreshable { await manualRefresh() }
@@ -167,7 +161,6 @@ struct DeviceDetailView: View {
             }
 
             resultSection
-            widgetSection
         }
         .refreshable { await manualRefresh() }
     }
@@ -215,24 +208,28 @@ struct DeviceDetailView: View {
         }
     }
 
-    /// Виджет не делит хранилище с приложением, поэтому адрес и токен
-    /// приходится переносить в его настройки вручную.
-    private var widgetSection: some View {
-        Section {
-            Button("Скопировать адрес", systemImage: "doc.on.doc") {
-                UIPasteboard.general.string = device.displayAddress
-                copied = "Адрес скопирован"
+    private var moreMenu: some View {
+        Menu("Ещё", systemImage: "ellipsis.circle") {
+            Button("Обновить", systemImage: "arrow.clockwise") {
+                Task { await manualRefresh() }
             }
-            Button("Скопировать токен", systemImage: "key") {
-                UIPasteboard.general.string = store.token(for: device) ?? ""
-                copied = "Токен скопирован"
+            .disabled(isChecking || !isOnLocalNetwork)
+
+            // Виджет не делит хранилище с приложением, поэтому адрес и токен
+            // приходится переносить в его настройки вручную.
+            Section("Для виджета") {
+                Button("Скопировать адрес", systemImage: "doc.on.doc") {
+                    UIPasteboard.general.string = device.displayAddress
+                    copyCount += 1
+                }
+                Button("Скопировать токен", systemImage: "key") {
+                    UIPasteboard.general.string = store.token(for: device) ?? ""
+                    copyCount += 1
+                }
             }
-        } header: {
-            Text("Для виджета")
-        } footer: {
-            Text(copied ?? "Виджет настраивается отдельно: вставьте эти значения в его параметрах.")
-                .foregroundStyle(copied == nil ? Color.secondary : Color.green)
         }
+        // Меню после выбора закрывается, подтверждаем копирование вибрацией.
+        .sensoryFeedback(.success, trigger: copyCount)
     }
 
     @ViewBuilder
