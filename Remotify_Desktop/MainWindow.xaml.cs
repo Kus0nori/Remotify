@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.UI;
+using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -20,6 +21,9 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        SystemBackdrop = new MicaBackdrop();
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
         ConfigureWindow();
         LoadSettings();
         _isInitializing = false;
@@ -33,17 +37,15 @@ public partial class MainWindow : Window
 
         if (_appWindow == null) return;
 
-        // Set window size (450x400)
-        _appWindow.Resize(new SizeInt32(450, 440));
+        _appWindow.Resize(new SizeInt32(500, 700));
+        _appWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
 
-        // Disable resizing and maximizing
         if (_appWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.IsResizable = false;
             presenter.IsMaximizable = false;
         }
 
-        // Center on screen
         CenterWindow();
     }
 
@@ -69,10 +71,10 @@ public partial class MainWindow : Window
         var settings = AppInstance.SettingsService.Settings;
 
         IpAddressText.Text = GetLocalIpAddress();
-        PortText.Text = settings.Port.ToString();
+        PortNumberBox.Value = settings.Port;
         TokenText.Text = settings.AuthToken;
-        AutoStartCheckBox.IsChecked = AppInstance.StartupService.IsEnabled();
-        FirewallCheckBox.IsChecked = settings.FirewallRuleEnabled;
+        AutoStartToggle.IsOn = AppInstance.StartupService.IsEnabled();
+        FirewallToggle.IsOn = settings.FirewallRuleEnabled;
 
         UpdateServerStatus();
     }
@@ -81,13 +83,23 @@ public partial class MainWindow : Window
     {
         if (AppInstance.ApiServer.IsRunning)
         {
-            StatusIndicator.Fill = new SolidColorBrush(Colors.Green);
-            StatusText.Text = "Сервер запущен";
+            StatusCard.Header = "Сервер запущен";
+            StatusCard.Description = $"Порт {AppInstance.SettingsService.Settings.Port}";
+            if (StatusCard.HeaderIcon is FontIcon icon)
+            {
+                icon.Glyph = "\uE73E"; // Checkmark
+                icon.Foreground = new SolidColorBrush(Colors.Green);
+            }
         }
         else
         {
-            StatusIndicator.Fill = new SolidColorBrush(Colors.Red);
-            StatusText.Text = "Сервер остановлен";
+            StatusCard.Header = "Сервер остановлен";
+            StatusCard.Description = "Не удалось запустить";
+            if (StatusCard.HeaderIcon is FontIcon icon)
+            {
+                icon.Glyph = "\uE711"; // Error
+                icon.Foreground = new SolidColorBrush(Colors.Red);
+            }
         }
     }
 
@@ -121,11 +133,13 @@ public partial class MainWindow : Window
     private void CopyIp_Click(object sender, RoutedEventArgs e)
     {
         CopyToClipboard(IpAddressText.Text);
+        ShowInfoMessage("IP-адрес скопирован", InfoBarSeverity.Success);
     }
 
     private void CopyToken_Click(object sender, RoutedEventArgs e)
     {
         CopyToClipboard(TokenText.Text);
+        ShowInfoMessage("Токен скопирован", InfoBarSeverity.Success);
     }
 
     private static void CopyToClipboard(string text)
@@ -152,22 +166,23 @@ public partial class MainWindow : Window
         {
             AppInstance.SettingsService.RegenerateToken();
             TokenText.Text = AppInstance.SettingsService.Settings.AuthToken;
+            ShowInfoMessage("Новый токен сгенерирован", InfoBarSeverity.Success);
         }
     }
 
-    private void AutoStartCheckBox_Changed(object sender, RoutedEventArgs e)
+    private void AutoStartToggle_Toggled(object sender, RoutedEventArgs e)
     {
         if (_isInitializing) return;
 
-        var enabled = AutoStartCheckBox.IsChecked == true;
+        var enabled = AutoStartToggle.IsOn;
         AppInstance.StartupService.SetEnabled(enabled);
     }
 
-    private async void FirewallCheckBox_Changed(object sender, RoutedEventArgs e)
+    private async void FirewallToggle_Toggled(object sender, RoutedEventArgs e)
     {
         if (_isInitializing) return;
 
-        var enabled = FirewallCheckBox.IsChecked == true;
+        var enabled = FirewallToggle.IsOn;
         var settings = AppInstance.SettingsService.Settings;
 
         bool success;
@@ -188,20 +203,20 @@ public partial class MainWindow : Window
         else
         {
             _isInitializing = true;
-            FirewallCheckBox.IsChecked = !enabled;
+            FirewallToggle.IsOn = !enabled;
             _isInitializing = false;
 
-            await ShowMessageAsync(
-                "Ошибка",
-                "Не удалось изменить правило брандмауэра. Возможно, операция была отменена.");
+            ShowInfoMessage("Не удалось изменить правило брандмауэра", InfoBarSeverity.Error);
         }
     }
 
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
-        if (!int.TryParse(PortText.Text, out var port) || port < 1 || port > 65535)
+        var port = (int)PortNumberBox.Value;
+
+        if (port < 1 || port > 65535)
         {
-            await ShowMessageAsync("Ошибка", "Порт должен быть числом от 1 до 65535.");
+            ShowInfoMessage("Порт должен быть от 1 до 65535", InfoBarSeverity.Error);
             return;
         }
 
@@ -222,7 +237,7 @@ public partial class MainWindow : Window
             UpdateServerStatus();
         }
 
-        await ShowMessageAsync("Remotify", "Настройки сохранены.");
+        ShowInfoMessage("Настройки сохранены", InfoBarSeverity.Success);
     }
 
     private void Close_Click(object sender, RoutedEventArgs e)
@@ -230,16 +245,19 @@ public partial class MainWindow : Window
         Close();
     }
 
-    private async Task ShowMessageAsync(string title, string message)
+    private void ShowInfoMessage(string message, InfoBarSeverity severity)
     {
-        var dialog = new ContentDialog
-        {
-            Title = title,
-            Content = message,
-            CloseButtonText = "OK",
-            XamlRoot = Content.XamlRoot
-        };
+        InfoMessage.Message = message;
+        InfoMessage.Severity = severity;
+        InfoMessage.IsOpen = true;
 
-        await dialog.ShowAsync();
+        // Auto-hide after 3 seconds
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        timer.Tick += (_, _) =>
+        {
+            InfoMessage.IsOpen = false;
+            timer.Stop();
+        };
+        timer.Start();
     }
 }

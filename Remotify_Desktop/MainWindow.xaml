@@ -1,88 +1,142 @@
 <Window x:Class="Remotify.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:local="using:Remotify"
-        Title="Remotify - Настройки">
-    <Grid Margin="20">
+        xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+        Title="Remotify">
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="48" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Статус -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,15">
-            <TextBlock Text="Статус" FontWeight="Bold" FontSize="14" />
-            <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                <Ellipse x:Name="StatusIndicator" Width="12" Height="12" Fill="Green" VerticalAlignment="Center" />
-                <TextBlock x:Name="StatusText" Text="Сервер запущен" Margin="8,0,0,0" VerticalAlignment="Center" />
+        <!-- Custom Title Bar -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" VerticalAlignment="Stretch">
+            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0,0,0" VerticalAlignment="Center">
+                <Image Source="ms-appx:///Assets/app.ico" Width="16" Height="16" />
+                <TextBlock Text="Remotify" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" />
             </StackPanel>
-        </StackPanel>
+        </Grid>
 
-        <!-- Подключение -->
-        <StackPanel Grid.Row="1" Margin="0,0,0,15">
-            <TextBlock Text="Подключение" FontWeight="Bold" FontSize="14" />
-            <Grid Margin="0,5,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+        <ScrollViewer Grid.Row="1" Padding="24">
+            <StackPanel Spacing="4" MaxWidth="600">
 
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="IP-адрес:" VerticalAlignment="Center" />
-                <TextBox x:Name="IpAddressText" Grid.Row="0" Grid.Column="1" IsReadOnly="True" Margin="10,0,10,0" />
-                <Button Grid.Row="0" Grid.Column="2" Content="Копировать" Width="80" Click="CopyIp_Click" />
+                <!-- Status -->
+                <controls:SettingsCard x:Name="StatusCard"
+                                       Header="Сервер запущен"
+                                       Description="Ожидание подключений"
+                                       IsClickEnabled="False">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE73E;" Foreground="Green" />
+                    </controls:SettingsCard.HeaderIcon>
+                </controls:SettingsCard>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Порт:" VerticalAlignment="Center" Margin="0,8,0,0" />
-                <TextBox x:Name="PortText" Grid.Row="1" Grid.Column="1" Margin="10,8,10,0" />
-            </Grid>
-        </StackPanel>
+                <!-- Connection Section Header -->
+                <TextBlock Text="Подключение"
+                           Style="{StaticResource BodyStrongTextBlockStyle}"
+                           Margin="0,24,0,8" />
 
-        <!-- Токен -->
-        <StackPanel Grid.Row="2" Margin="0,0,0,15">
-            <TextBlock Text="Токен авторизации" FontWeight="Bold" FontSize="14" />
-            <Grid Margin="0,5,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBox x:Name="TokenText" Grid.Column="0" IsReadOnly="True" />
-                <Button Grid.Column="1" Content="Копировать" Width="80" Margin="10,0,0,0" Click="CopyToken_Click" />
-                <Button Grid.Column="2" Content="Новый" Width="60" Margin="10,0,0,0" Click="RegenerateToken_Click" />
-            </Grid>
-        </StackPanel>
+                <!-- IP Address -->
+                <controls:SettingsCard Header="IP-адрес"
+                                       Description="Локальный адрес в сети">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE774;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock x:Name="IpAddressText"
+                                   VerticalAlignment="Center"
+                                   Style="{StaticResource BodyTextBlockStyle}" />
+                        <Button Click="CopyIp_Click" ToolTipService.ToolTip="Копировать">
+                            <FontIcon Glyph="&#xE8C8;" FontSize="14" />
+                        </Button>
+                    </StackPanel>
+                </controls:SettingsCard>
 
-        <!-- Настройки -->
-        <StackPanel Grid.Row="3" Margin="0,0,0,15">
-            <TextBlock Text="Настройки" FontWeight="Bold" FontSize="14" />
-            <CheckBox x:Name="AutoStartCheckBox" Content="Запускать при старте Windows" Margin="0,8,0,0"
-                      Checked="AutoStartCheckBox_Changed" Unchecked="AutoStartCheckBox_Changed" />
-            <CheckBox x:Name="FirewallCheckBox" Content="Открыть порт в брандмауэре (требует прав администратора)" Margin="0,8,0,0"
-                      Checked="FirewallCheckBox_Changed" Unchecked="FirewallCheckBox_Changed" />
-        </StackPanel>
+                <!-- Port -->
+                <controls:SettingsCard Header="Порт"
+                                       Description="Порт API сервера">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE968;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <NumberBox x:Name="PortNumberBox"
+                                   Minimum="1" Maximum="65535"
+                                   SpinButtonPlacementMode="Compact"
+                                   Width="120" />
+                    </StackPanel>
+                </controls:SettingsCard>
 
-        <!-- Инструкция -->
-        <StackPanel Grid.Row="4" Margin="0,0,0,15">
-            <TextBlock Text="Для мобильного приложения" FontWeight="Bold" FontSize="14" />
-            <TextBlock TextWrapping="Wrap" Margin="0,5,0,0" Foreground="Gray">
-                Укажите в мобильном приложении IP-адрес, порт и токен авторизации.
-                Убедитесь, что телефон подключён к той же сети Wi-Fi.
-            </TextBlock>
-        </StackPanel>
+                <!-- Authorization Section Header -->
+                <TextBlock Text="Авторизация"
+                           Style="{StaticResource BodyStrongTextBlockStyle}"
+                           Margin="0,24,0,8" />
 
-        <!-- Кнопки -->
-        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Сохранить" Width="100" Click="Save_Click" />
-            <Button Content="Закрыть" Width="100" Margin="10,0,0,0" Click="Close_Click" />
-        </StackPanel>
+                <!-- Token -->
+                <controls:SettingsCard Header="Токен"
+                                       Description="Для подключения мобильного приложения">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE8D7;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock x:Name="TokenText"
+                                   VerticalAlignment="Center"
+                                   Style="{StaticResource BodyTextBlockStyle}"
+                                   MaxWidth="180"
+                                   TextTrimming="CharacterEllipsis" />
+                        <Button Click="CopyToken_Click" ToolTipService.ToolTip="Копировать">
+                            <FontIcon Glyph="&#xE8C8;" FontSize="14" />
+                        </Button>
+                        <Button Click="RegenerateToken_Click" ToolTipService.ToolTip="Сгенерировать новый">
+                            <FontIcon Glyph="&#xE72C;" FontSize="14" />
+                        </Button>
+                    </StackPanel>
+                </controls:SettingsCard>
+
+                <!-- Settings Section Header -->
+                <TextBlock Text="Настройки"
+                           Style="{StaticResource BodyStrongTextBlockStyle}"
+                           Margin="0,24,0,8" />
+
+                <!-- Auto Start -->
+                <controls:SettingsCard Header="Автозапуск"
+                                       Description="Запускать при старте Windows">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE7E8;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <ToggleSwitch x:Name="AutoStartToggle"
+                                  OnContent="" OffContent=""
+                                  Toggled="AutoStartToggle_Toggled" />
+                </controls:SettingsCard>
+
+                <!-- Firewall -->
+                <controls:SettingsCard Header="Брандмауэр"
+                                       Description="Открыть порт (требует прав администратора)">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE83D;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <ToggleSwitch x:Name="FirewallToggle"
+                                  OnContent="" OffContent=""
+                                  Toggled="FirewallToggle_Toggled" />
+                </controls:SettingsCard>
+
+                <!-- Info -->
+                <InfoBar x:Name="InfoMessage"
+                         IsOpen="False"
+                         Severity="Success"
+                         Margin="0,16,0,0" />
+
+                <!-- Buttons -->
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Spacing="8"
+                            Margin="0,24,0,0">
+                    <Button Content="Сохранить"
+                            Style="{StaticResource AccentButtonStyle}"
+                            Click="Save_Click" />
+                    <Button Content="Закрыть"
+                            Click="Close_Click" />
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Window>
