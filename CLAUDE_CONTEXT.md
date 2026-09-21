@@ -70,8 +70,8 @@ Headers:
   Authorization: Bearer <token>
 Response: {
   "apps": [
-    { "id": "1A2B3C", "title": "Notepad", "processName": "notepad" },
-    { "id": "4D5E6F", "title": "Google Chrome", "processName": "chrome" }
+    { "id": "1A2B3C", "title": "Notepad", "processName": "notepad", "mayHaveUnsavedChanges": false },
+    { "id": "4D5E6F", "title": "* Document.txt", "processName": "notepad", "mayHaveUnsavedChanges": true }
   ]
 }
 Errors:
@@ -79,6 +79,7 @@ Errors:
 ```
 - Возвращает только видимые окна верхнего уровня (как в Alt+Tab)
 - `id` — handle окна в hex формате
+- `mayHaveUnsavedChanges` — эвристика на основе `*` в заголовке (как в Unity, Photoshop, Paint)
 
 ### Иконка приложения
 ```

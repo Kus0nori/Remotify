@@ -101,7 +101,8 @@ public class WindowService
             {
                 Id = hWnd.ToString("X"),
                 Title = title,
-                ProcessName = processName
+                ProcessName = processName,
+                MayHaveUnsavedChanges = DetectUnsavedChanges(title)
             });
 
             return true;
@@ -190,5 +191,10 @@ public class WindowService
         }
 
         return false;
+    }
+
+    private static bool DetectUnsavedChanges(string title)
+    {
+        return title.StartsWith('*') || title.EndsWith('*');
     }
 }
