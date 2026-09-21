@@ -19,7 +19,7 @@ public class StartupService
         if (string.IsNullOrEmpty(exePath)) return;
 
         using var key = Registry.CurrentUser.OpenSubKey(RegistryKey, true);
-        key?.SetValue(AppName, $"\"{exePath}\"");
+        key?.SetValue(AppName, $"\"{exePath}\" --autostart");
     }
 
     public void Disable()

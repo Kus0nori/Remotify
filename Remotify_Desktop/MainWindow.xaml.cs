@@ -46,7 +46,15 @@ public partial class MainWindow : Window
             presenter.IsMaximizable = false;
         }
 
+        _appWindow.Closing += OnWindowClosing;
+
         CenterWindow();
+    }
+
+    private void OnWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        args.Cancel = true;
+        App.Current.MinimizeToTray(this);
     }
 
     private void CenterWindow()

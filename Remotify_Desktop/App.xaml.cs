@@ -20,6 +20,7 @@ public partial class App : Application
     private TaskbarIcon? _trayIcon;
     private MainWindow? _mainWindow;
     private Window? _backgroundWindow;
+    private bool _hasShownMinimizeNotification;
 
     public static new App Current => (App)Application.Current;
 
@@ -60,6 +61,20 @@ public partial class App : Application
         CreateTrayIcon();
 
         ApiServer.Start();
+
+        // Показываем окно при первом запуске (но не при автозапуске с Windows)
+        if (!IsAutoStartLaunch() && !SettingsService.Settings.FirstRunCompleted)
+        {
+            ShowMainWindow();
+            SettingsService.Settings.FirstRunCompleted = true;
+            SettingsService.Save();
+        }
+    }
+
+    private static bool IsAutoStartLaunch()
+    {
+        var args = Environment.GetCommandLineArgs();
+        return args.Contains("--autostart", StringComparer.OrdinalIgnoreCase);
     }
 
     private void CreateTrayIcon()
@@ -118,10 +133,25 @@ public partial class App : Application
         if (_mainWindow == null)
         {
             _mainWindow = new MainWindow();
-            _mainWindow.Closed += (_, _) => _mainWindow = null;
         }
 
         _mainWindow.Activate();
+    }
+
+    public void MinimizeToTray(Window window)
+    {
+        var hwnd = WindowNative.GetWindowHandle(window);
+        ShowWindow(hwnd, SW_HIDE);
+        _mainWindow = null;
+
+        if (!_hasShownMinimizeNotification)
+        {
+            _trayIcon?.TrayIcon.ShowNotification(
+                "Remotify",
+                "Remotify свёрнуто в системный трей",
+                H.NotifyIcon.Core.NotificationIcon.Info);
+            _hasShownMinimizeNotification = true;
+        }
     }
 
     private class RelayCommand : System.Windows.Input.ICommand

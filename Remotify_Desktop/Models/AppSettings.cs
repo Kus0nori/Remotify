@@ -6,4 +6,5 @@ public class AppSettings
     public string AuthToken { get; set; } = string.Empty;
     public bool AutoStart { get; set; }
     public bool FirewallRuleEnabled { get; set; }
+    public bool FirstRunCompleted { get; set; }
 }
