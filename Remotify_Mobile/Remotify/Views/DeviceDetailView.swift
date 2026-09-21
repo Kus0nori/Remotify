@@ -4,8 +4,12 @@ struct DeviceDetailView: View {
     let device: Device
 
     @Environment(DeviceStore.self) private var store
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var status: Status = .unknown
+    @State private var metrics: SystemMetrics?
+    @State private var appCount: Int?
+    @State private var metricsError: String?
     @State private var pendingAction: PowerAction?
     @State private var runningAction: PowerAction?
     @State private var result: ActionResult?
@@ -23,14 +27,31 @@ struct DeviceDetailView: View {
 
     var body: some View {
         List {
-            statusSection
             actionsSection
+            offlineSection
+            MetricsSection(device: device, metrics: metrics, appCount: appCount, errorMessage: metricsError)
             widgetSection
             resultSection
         }
         .navigationTitle(device.name)
-        .navigationBarTitleDisplayMode(.large)
+        // Статус рисуем рядом с названием, а в большой заголовок свои вью не вставить.
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) { titleView }
+            ToolbarItem(placement: .primaryAction) {
+                Button("Обновить", systemImage: "arrow.clockwise") {
+                    Task { await refreshStatus() }
+                }
+                .disabled(isChecking)
+            }
+        }
+        .refreshable { await refreshStatus() }
         .task { await refreshStatus() }
+        // Задача отменяется, когда экран уходит из вида или приложение сворачивается.
+        .task(id: scenePhase) {
+            guard scenePhase == .active else { return }
+            await pollMetrics()
+        }
         .confirmationDialog(
             pendingAction?.confirmationMessage(deviceName: device.name) ?? "",
             isPresented: Binding(get: { pendingAction != nil }, set: { if !$0 { pendingAction = nil } }),
@@ -45,25 +66,23 @@ struct DeviceDetailView: View {
         }
     }
 
-    private var statusSection: some View {
-        Section("Состояние") {
-            HStack {
-                statusIcon
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(statusTitle)
-                    Text(device.displayAddress)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button("Обновить") { Task { await refreshStatus() } }
-                    .buttonStyle(.bordered)
-                    .disabled(isChecking)
-            }
-            .padding(.vertical, 4)
+    private var titleView: some View {
+        HStack(spacing: 6) {
+            Text(device.name)
+                .font(.headline)
+                .lineLimit(1)
+            statusDot
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(device.name)
+        .accessibilityValue(statusTitle)
+    }
 
-            if case .offline(let message) = status {
-                Text(message)
+    @ViewBuilder
+    private var offlineSection: some View {
+        if case .offline(let message) = status {
+            Section {
+                Label(message, systemImage: "wifi.exclamationmark")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -135,17 +154,20 @@ struct DeviceDetailView: View {
         }
     }
 
-    @ViewBuilder
-    private var statusIcon: some View {
+    /// Точка-индикатор, как у статуса «в сети» в мессенджерах. Пульсирует во время проверки.
+    private var statusDot: some View {
+        Image(systemName: "circle.fill")
+            .font(.system(size: 8))
+            .foregroundStyle(statusColor)
+            .symbolEffect(.pulse, isActive: isChecking)
+            .animation(.default, value: statusColor)
+    }
+
+    private var statusColor: Color {
         switch status {
-        case .unknown:
-            Image(systemName: "questionmark.circle.fill").foregroundStyle(.secondary)
-        case .checking:
-            ProgressView().frame(width: 20)
-        case .online:
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-        case .offline:
-            Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
+        case .unknown, .checking: .secondary
+        case .online: .green
+        case .offline: .red
         }
     }
 
@@ -156,6 +178,28 @@ struct DeviceDetailView: View {
             status = .online
         } catch {
             status = .offline(error.localizedDescription)
+        }
+    }
+
+    /// Десктоп пересчитывает метрики раз в секунду, чаще спрашивать нет смысла.
+    private func pollMetrics() async {
+        guard let token = store.token(for: device) else {
+            metricsError = "Токен для этого устройства не найден. Добавьте устройство заново."
+            return
+        }
+
+        while !Task.isCancelled {
+            // Список окон нужен только ради количества; если он не пришёл, метрики всё равно показываем.
+            async let apps = try? APIClient.shared.apps(from: device, token: token)
+            do {
+                metrics = try await APIClient.shared.metrics(from: device, token: token)
+                appCount = await apps?.count
+                metricsError = nil
+            } catch {
+                guard !Task.isCancelled else { return }
+                metricsError = error.localizedDescription
+            }
+            try? await Task.sleep(for: .seconds(2))
         }
     }
 

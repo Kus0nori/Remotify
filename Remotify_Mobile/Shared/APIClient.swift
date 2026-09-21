@@ -107,6 +107,32 @@ struct APIClient: Sendable {
         }
     }
 
+    /// Авторизованный `GET` для эндпоинтов, которые отдают данные.
+    /// Возвращает тело ответа 200, остальные коды превращает в `APIError`.
+    func fetch(_ path: String, from device: Device, token: String) async throws -> Data {
+        guard let url = device.baseURL?.appending(path: path) else {
+            throw APIError.invalidAddress
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await perform(request)
+
+        guard let http = response as? HTTPURLResponse else {
+            throw APIError.unexpectedStatus(-1)
+        }
+
+        switch http.statusCode {
+        case 200:
+            return data
+        case 401:
+            throw APIError.unauthorized
+        default:
+            throw APIError.unexpectedStatus(http.statusCode)
+        }
+    }
+
     private func perform(_ request: URLRequest) async throws -> (Data, URLResponse) {
         do {
             return try await session.data(for: request)

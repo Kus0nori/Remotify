@@ -11,8 +11,14 @@ SwiftUI-приложение для управления ПК с запущен�
 1. **Устройства** (`Views/DeviceListView.swift`) — список сохранённых ПК, кнопка «+»,
    свайп для удаления. Добавление — в модальном `AddDeviceView` (адрес, порт, токен,
    кнопка «Проверить подключение» через неавторизованный `GET /api/ping`).
-2. **Устройство** (`Views/DeviceDetailView.swift`) — статус связи и четыре действия
-   (выключить / перезагрузить / сон / гибернация) с подтверждением.
+2. **Устройство** (`Views/DeviceDetailView.swift`) — точка статуса связи справа от
+   названия, кнопка «Обновить» в тулбаре; сверху четыре действия
+   (выключить / перезагрузить / сон / гибернация) с подтверждением, под ними метрики ПК
+   (`MetricsSection`: CPU, RAM, сеть, аптайм и количество открытых приложений — опрос
+   `GET /api/metrics` и `GET /api/apps` раз в 2 секунды, пока экран открыт и приложение активно).
+3. **Приложения** (`Views/RunningAppsView.swift`) — открывается тапом по метрике
+   «Приложения». Открытые на ПК окна из `GET /api/apps` с иконками
+   (`GET /api/apps/{id}/icon`) и пометкой о несохранённых изменениях, pull-to-refresh.
 
 ## Виджет
 
@@ -36,13 +42,17 @@ Remotify_Mobile/
 ├── Shared/                     — явные file refs, входит в ОБА таргета
 │   ├── Device.swift            — имя, хост, порт (токен здесь НЕ хранится)
 │   ├── PowerAction.swift       — shutdown / reboot / sleep / hibernate + AppEnum
-│   └── APIClient.swift         — ping + command поверх URLSession
+│   └── APIClient.swift         — ping + command + авторизованный fetch поверх URLSession
 ├── Remotify/                   — synchronized folder (Xcode 16), файлы не надо
 │   │                             регистрировать в project.pbxproj вручную
 │   ├── RemotifyApp.swift
+│   ├── Models/
+│   │   ├── RemoteApp.swift     — окно из /api/apps
+│   │   └── SystemMetrics.swift — ответ /api/metrics
 │   ├── Services/
 │   │   ├── DeviceStore.swift   — @Observable, список в UserDefaults
-│   │   └── Keychain.swift      — токены в Keychain по UUID устройства
+│   │   ├── Keychain.swift      — токены в Keychain по UUID устройства
+│   │   └── APIClient+Monitoring.swift — apps / appIcon / metrics (только в приложении)
 │   └── Views/
 └── RemotifyWidget/             — synchronized folder, таргет расширения
     ├── RemotifyWidgetBundle.swift
