@@ -44,13 +44,11 @@ public partial class App : Application
 
         if (!isNewInstance)
         {
-            // Can't show dialog without a window, just exit
             _mutex?.Dispose();
             Exit();
             return;
         }
 
-        // Скрытое окно для поддержания процесса (WinUI 3 закрывается без окон)
         _backgroundWindow = new Window { Title = "Remotify" };
         var hwnd = WindowNative.GetWindowHandle(_backgroundWindow);
         ShowWindow(hwnd, SW_HIDE);
@@ -62,7 +60,6 @@ public partial class App : Application
 
         ApiServer.Start();
 
-        // Показываем окно при первом запуске (но не при автозапуске с Windows)
         if (!IsAutoStartLaunch() && !SettingsService.Settings.FirstRunCompleted)
         {
             ShowMainWindow();
@@ -87,11 +84,13 @@ public partial class App : Application
             Icon = new Icon(iconPath)
         };
 
+        _trayIcon.LeftClickCommand = new RelayCommand(ShowMainWindow);
+
         var contextMenu = new MenuFlyout();
 
         var openItem = new MenuFlyoutItem
         {
-            Text = "Открыть",
+            Text = "Настройки",
             FontWeight = Microsoft.UI.Text.FontWeights.Bold,
             Command = new RelayCommand(ShowMainWindow)
         };
@@ -107,8 +106,6 @@ public partial class App : Application
         contextMenu.Items.Add(exitItem);
 
         _trayIcon.ContextFlyout = contextMenu;
-        _trayIcon.LeftClickCommand = new RelayCommand(ShowMainWindow);
-        _trayIcon.DoubleClickCommand = new RelayCommand(ShowMainWindow);
         _trayIcon.ForceCreate();
     }
 
@@ -135,7 +132,7 @@ public partial class App : Application
             _mainWindow = new MainWindow();
         }
 
-        _mainWindow.Activate();
+        _mainWindow.ShowWithAnimation();
     }
 
     public void MinimizeToTray(Window window)

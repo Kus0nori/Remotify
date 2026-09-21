@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using Microsoft.UI;
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Windowing;
@@ -14,6 +15,43 @@ namespace Remotify;
 
 public partial class MainWindow : Window
 {
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref uint attrValue, int attrSize);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MARGINS
+    {
+        public int Left, Right, Top, Bottom;
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS margins);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+    private const int GWL_STYLE = -16;
+    private const int WS_BORDER = 0x00800000;
+    private const int WS_DLGFRAME = 0x00400000;
+    private const int WS_THICKFRAME = 0x00040000;
+
+    private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+    private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+    private const int DWMWA_BORDER_COLOR = 34;
+    private const int DWMWA_CAPTION_COLOR = 35;
+    private const int DWMWCP_ROUND = 2;
+    private const uint DWMWA_COLOR_NONE = 0xFFFFFFFE;
+    private const uint DWMWA_COLOR_DEFAULT = 0xFFFFFFFF;
+
     private App AppInstance => App.Current;
     private bool _isInitializing = true;
     private AppWindow? _appWindow;
@@ -21,7 +59,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        SystemBackdrop = new MicaBackdrop();
+        SystemBackdrop = new DesktopAcrylicBackdrop();
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         ConfigureWindow();
@@ -37,18 +75,101 @@ public partial class MainWindow : Window
 
         if (_appWindow == null) return;
 
-        _appWindow.Resize(new SizeInt32(600, 700));
+        _appWindow.Resize(new SizeInt32(400, 580));
         _appWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
 
         if (_appWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.IsResizable = false;
             presenter.IsMaximizable = false;
+            presenter.IsMinimizable = false;
+            presenter.SetBorderAndTitleBar(false, false);
         }
 
-        _appWindow.Closing += OnWindowClosing;
+        var darkMode = 1;
+        DwmSetWindowAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
 
-        CenterWindow();
+        var cornerPreference = DWMWCP_ROUND;
+        DwmSetWindowAttribute(hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref cornerPreference, sizeof(int));
+
+        uint borderColor = 0x00000000;
+        DwmSetWindowAttribute(hWnd, DWMWA_BORDER_COLOR, ref borderColor, sizeof(uint));
+
+        uint captionColor = 0x00000000;
+        DwmSetWindowAttribute(hWnd, DWMWA_CAPTION_COLOR, ref captionColor, sizeof(uint));
+
+        var margins = new MARGINS { Left = -1, Right = -1, Top = -1, Bottom = -1 };
+        DwmExtendFrameIntoClientArea(hWnd, ref margins);
+
+        var style = GetWindowLong(hWnd, GWL_STYLE);
+        style &= ~(WS_BORDER | WS_DLGFRAME | WS_THICKFRAME);
+        SetWindowLong(hWnd, GWL_STYLE, style);
+
+        _appWindow.Closing += OnWindowClosing;
+        Activated += OnWindowActivated;
+    }
+
+    public void ShowWithAnimation()
+    {
+        var hWnd = WindowNative.GetWindowHandle(this);
+
+        uint borderColor = 0x00000000;
+        DwmSetWindowAttribute(hWnd, DWMWA_BORDER_COLOR, ref borderColor, sizeof(uint));
+
+        var displayArea = DisplayArea.GetFromWindowId(
+            Win32Interop.GetWindowIdFromWindow(hWnd),
+            DisplayAreaFallback.Primary);
+
+        if (displayArea == null || _appWindow == null) return;
+
+        var workArea = displayArea.WorkArea;
+        var finalX = workArea.X + workArea.Width - _appWindow.Size.Width - 12;
+        var finalY = workArea.Y + workArea.Height - _appWindow.Size.Height - 12;
+
+        var startY = workArea.Y + workArea.Height + 20;
+        _appWindow.Move(new PointInt32(finalX, startY));
+
+        Activate();
+        SetForegroundWindow(hWnd);
+
+        const int durationMs = 250;
+        const int frameMs = 12;
+        var totalFrames = durationMs / frameMs;
+        var frame = 0;
+        var distance = startY - finalY;
+
+        var animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(frameMs) };
+        animationTimer.Tick += (_, _) =>
+        {
+            frame++;
+            var t = (double)frame / totalFrames;
+
+            var eased = 1 - Math.Pow(1 - t, 3);
+            var currentY = startY - (distance * eased);
+
+            if (frame >= totalFrames)
+            {
+                currentY = finalY;
+                animationTimer.Stop();
+            }
+
+            _appWindow.Move(new PointInt32(finalX, (int)currentY));
+        };
+        animationTimer.Start();
+    }
+
+    public void ForceFocus()
+    {
+        var hWnd = WindowNative.GetWindowHandle(this);
+        SetForegroundWindow(hWnd);
+    }
+
+    private void OnWindowActivated(object sender, WindowActivatedEventArgs args)
+    {
+        if (args.WindowActivationState == WindowActivationState.Deactivated)
+        {
+            App.Current.MinimizeToTray(this);
+        }
     }
 
     private void OnWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
@@ -57,7 +178,7 @@ public partial class MainWindow : Window
         App.Current.MinimizeToTray(this);
     }
 
-    private void CenterWindow()
+    private void PositionNearTray()
     {
         if (_appWindow == null) return;
 
@@ -68,9 +189,10 @@ public partial class MainWindow : Window
 
         if (displayArea != null)
         {
-            var centerX = (displayArea.WorkArea.Width - _appWindow.Size.Width) / 2;
-            var centerY = (displayArea.WorkArea.Height - _appWindow.Size.Height) / 2;
-            _appWindow.Move(new PointInt32(centerX, centerY));
+            var workArea = displayArea.WorkArea;
+            var x = workArea.X + workArea.Width - _appWindow.Size.Width - 12;
+            var y = workArea.Y + workArea.Height - _appWindow.Size.Height - 12;
+            _appWindow.Move(new PointInt32(x, y));
         }
     }
 
@@ -95,7 +217,7 @@ public partial class MainWindow : Window
             StatusCard.Description = $"Порт {AppInstance.SettingsService.Settings.Port}";
             if (StatusCard.HeaderIcon is FontIcon icon)
             {
-                icon.Glyph = "\uE73E"; // Checkmark
+                icon.Glyph = "\uE73E";
                 icon.Foreground = new SolidColorBrush(Colors.Green);
             }
         }
@@ -105,7 +227,7 @@ public partial class MainWindow : Window
             StatusCard.Description = "Не удалось запустить";
             if (StatusCard.HeaderIcon is FontIcon icon)
             {
-                icon.Glyph = "\uE711"; // Error
+                icon.Glyph = "\uE711";
                 icon.Foreground = new SolidColorBrush(Colors.Red);
             }
         }
@@ -124,7 +246,6 @@ public partial class MainWindow : Window
         }
         catch
         {
-            // Fallback
         }
 
         var host = Dns.GetHostEntry(Dns.GetHostName());
@@ -259,7 +380,6 @@ public partial class MainWindow : Window
         InfoMessage.Severity = severity;
         InfoMessage.IsOpen = true;
 
-        // Auto-hide after 3 seconds
         var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         timer.Tick += (_, _) =>
         {

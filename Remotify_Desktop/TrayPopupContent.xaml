@@ -1,0 +1,120 @@
+<UserControl x:Class="Remotify.TrayPopupContent"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+             Width="320">
+    <Border Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="12">
+        <StackPanel Spacing="8">
+
+            <!-- Header -->
+            <Grid Margin="0,0,0,8">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Image Source="ms-appx:///Assets/app.ico" Width="24" Height="24" />
+                    <TextBlock Text="Remotify"
+                               Style="{StaticResource SubtitleTextBlockStyle}"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Status -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    CornerRadius="4"
+                    Padding="12,8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <FontIcon x:Name="StatusIcon"
+                              Glyph="&#xE73E;"
+                              Foreground="Green"
+                              FontSize="16"
+                              Margin="0,0,8,0" />
+                    <StackPanel Grid.Column="1">
+                        <TextBlock x:Name="StatusText"
+                                   Text="Сервер запущен"
+                                   Style="{StaticResource BodyStrongTextBlockStyle}" />
+                        <TextBlock x:Name="StatusDescription"
+                                   Text="Порт 5123"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- IP Address -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    CornerRadius="4"
+                    Padding="12,8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="IP-адрес"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Name="IpAddressText"
+                                   Text="192.168.1.100"
+                                   Style="{StaticResource BodyTextBlockStyle}" />
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Click="CopyIp_Click"
+                            ToolTipService.ToolTip="Копировать"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="8">
+                        <FontIcon Glyph="&#xE8C8;" FontSize="14" />
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Token -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    CornerRadius="4"
+                    Padding="12,8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Токен"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Name="TokenText"
+                                   Text="abc123..."
+                                   Style="{StaticResource BodyTextBlockStyle}"
+                                   MaxWidth="200"
+                                   TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Click="CopyToken_Click"
+                            ToolTipService.ToolTip="Копировать"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="8">
+                        <FontIcon Glyph="&#xE8C8;" FontSize="14" />
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Actions -->
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="8"
+                        Margin="0,4,0,0">
+                <Button Content="Настройки"
+                        Click="OpenSettings_Click" />
+                <Button Content="Выход"
+                        Click="Exit_Click" />
+            </StackPanel>
+
+        </StackPanel>
+    </Border>
+</UserControl>

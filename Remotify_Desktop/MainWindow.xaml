@@ -10,11 +10,23 @@
         </Grid.RowDefinitions>
 
         <!-- Custom Title Bar -->
-        <Grid x:Name="AppTitleBar" Grid.Row="0" VerticalAlignment="Stretch">
-            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0,0,0" VerticalAlignment="Center">
-                <Image Source="ms-appx:///Assets/app.ico" Width="16" Height="16" />
-                <TextBlock Text="Remotify" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" />
+        <Grid x:Name="AppTitleBar" Grid.Row="0" VerticalAlignment="Stretch" Margin="12,8,12,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <Image Source="ms-appx:///Assets/app.ico" Width="20" Height="20" />
+                <TextBlock Text="Remotify" Style="{StaticResource SubtitleTextBlockStyle}" VerticalAlignment="Center" />
             </StackPanel>
+            <Button Grid.Column="1"
+                    Click="Close_Click"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="8"
+                    VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE8BB;" FontSize="12" />
+            </Button>
         </Grid>
 
         <ScrollViewer Grid.Row="1" Padding="24">
